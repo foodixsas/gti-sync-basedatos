@@ -230,27 +230,24 @@ function parseExcel(filePath: string, batch: string): ExcelRow[] {
 async function upsertToSupabase(rows: ExcelRow[]): Promise<{ inserted: number; errors: number }> {
   const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
     auth: { persistSession: false },
-    db: { schema: 'contifico_clean' },
   });
 
   let inserted = 0, errors = 0;
-  const BATCH_SIZE = 500;
+  const BATCH_SIZE = 200;
 
   for (let i = 0; i < rows.length; i += BATCH_SIZE) {
-    const batch = rows.slice(i, i + BATCH_SIZE).map(r => ({
-      ...r,
-      synced_at: new Date().toISOString(),
-    }));
+    const batch = rows.slice(i, i + BATCH_SIZE);
 
-    const { error } = await supabase
-      .from('mov_ingresos_contif_scrape')
-      .upsert(batch, { onConflict: 'codigo,codigo_prod' });
+    const { data, error } = await supabase.rpc('fn_upsert_contif_scrape', {
+      p_rows: JSON.stringify(batch),
+    });
 
     if (error) {
       console.error(`  ❌ Batch error at ${i}:`, error.message);
       errors += batch.length;
     } else {
-      inserted += batch.length;
+      const result = data as { inserted: number };
+      inserted += result.inserted;
     }
   }
   return { inserted, errors };
