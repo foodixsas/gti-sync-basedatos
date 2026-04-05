@@ -1,0 +1,17 @@
+{
+  "name": "contifico-supabase-sync",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "scrape": "tsx src/scripts/scrape-costos.ts"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.49.1",
+    "xlsx": "^0.18.5"
+  },
+  "devDependencies": {
+    "playwright": "^1.52.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0"
+  }
+}

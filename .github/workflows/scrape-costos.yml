@@ -1,0 +1,47 @@
+name: Scrape Costos Contifico
+
+on:
+  schedule:
+    - cron: '0 6 * * 1'  # Lunes 6am UTC (1am Ecuador)
+  workflow_dispatch:
+    inputs:
+      desde:
+        description: 'Mes inicio (MM/YYYY)'
+        required: true
+        default: '01/2026'
+      hasta:
+        description: 'Mes fin (MM/YYYY)'
+        required: true
+        default: '04/2026'
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Install Playwright Chromium
+        run: npx playwright install chromium --with-deps
+
+      - name: Run scraper
+        env:
+          CONTIFICO_EMAIL: ${{ secrets.CONTIFICO_EMAIL }}
+          CONTIFICO_PASSWORD: ${{ secrets.CONTIFICO_PASSWORD }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          if [ "${{ github.event_name }}" = "schedule" ]; then
+            MONTH=$(date -u +"%m/%Y")
+            npx tsx src/scripts/scrape-costos.ts --desde $MONTH --hasta $MONTH
+          else
+            npx tsx src/scripts/scrape-costos.ts --desde "${{ inputs.desde }}" --hasta "${{ inputs.hasta }}"
+          fi
