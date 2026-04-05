@@ -68,6 +68,8 @@ async function login(page: Page): Promise<void> {
   await page.fill('input[name="password"], input[type="password"], #id_password', CONTIFICO_PASSWORD);
   await page.click('button[type="submit"], input[type="submit"]');
   await page.waitForURL('**/sistema/**', { timeout: 30000 });
+  await page.waitForLoadState('networkidle');
+  await page.waitForTimeout(3000);
   console.log('✅ Login exitoso');
 }
 
@@ -83,8 +85,20 @@ async function downloadExcelForMonth(
   await page.goto(MOVIMIENTOS_URL, { waitUntil: 'networkidle' });
   await page.waitForTimeout(2000);
 
-  // Select Tipo = ING
-  await page.selectOption('select', { value: 'ING' });
+  // Select Tipo = ING (find the select that has ING option, not the empresa select)
+  await page.evaluate(() => {
+    const selects = document.querySelectorAll('select');
+    for (const sel of selects) {
+      const options = sel.querySelectorAll('option');
+      for (const opt of options) {
+        if (opt.value === 'ING') {
+          sel.value = 'ING';
+          sel.dispatchEvent(new Event('change', { bubbles: true }));
+          return;
+        }
+      }
+    }
+  });
 
   // Set dates
   await page.evaluate(({ inicio, fin }) => {
