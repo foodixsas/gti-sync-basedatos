@@ -41,7 +41,7 @@ jobs:
         run: |
           if [ "${{ github.event_name }}" = "schedule" ]; then
             MONTH=$(date -u +"%m/%Y")
-            npx tsx src/scripts/scrape-costos.ts --desde $MONTH --hasta $MONTH
+            npx tsx src/scripts/scrape-costos.ts --desde $MONTH --hasta $MONTH --tipo diario
           else
-            npx tsx src/scripts/scrape-costos.ts --desde "${{ inputs.desde }}" --hasta "${{ inputs.hasta }}"
+            npx tsx src/scripts/scrape-costos.ts --desde "${{ inputs.desde }}" --hasta "${{ inputs.hasta }}" --tipo manual
           fi

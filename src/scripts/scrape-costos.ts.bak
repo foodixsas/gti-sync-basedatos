@@ -29,15 +29,14 @@ const MAPEO_CENTRO_COSTO: Record<string, string> = {
 };
 
 // ─── Args ──────────────────────────────────────────────────────────────────
-function parseArgs(): { desde: string; hasta: string; tipo: string } {
+function parseArgs(): { desde: string; hasta: string } {
   const args = process.argv.slice(2);
-  let desde = '01/2026', hasta = '04/2026', tipo = 'manual';
+  let desde = '01/2026', hasta = '04/2026';
   for (let i = 0; i < args.length; i++) {
     if (args[i] === '--desde' && args[i + 1]) desde = args[i + 1];
     if (args[i] === '--hasta' && args[i + 1]) hasta = args[i + 1];
-    if (args[i] === '--tipo' && args[i + 1]) tipo = args[i + 1];
   }
-  return { desde, hasta, tipo };
+  return { desde, hasta };
 }
 
 function generateMonths(desde: string, hasta: string): { inicio: string; fin: string; batch: string }[] {
@@ -256,10 +255,9 @@ async function upsertToSupabase(rows: ExcelRow[]): Promise<{ inserted: number; e
 
 // ─── Main ──────────────────────────────────────────────────────────────────
 async function main() {
-  const { desde, hasta, tipo } = parseArgs();
+  const { desde, hasta } = parseArgs();
   console.log(`\n🚀 Scrape Costos Contifico`);
-  console.log(`   Desde: ${desde} → Hasta: ${hasta}`);
-  console.log(`   Tipo: ${tipo}\n`);
+  console.log(`   Desde: ${desde} → Hasta: ${hasta}\n`);
 
   if (!CONTIFICO_EMAIL || !CONTIFICO_PASSWORD) {
     console.error('❌ CONTIFICO_EMAIL y CONTIFICO_PASSWORD son requeridos');
@@ -305,35 +303,10 @@ async function main() {
         const costoCero = rows.filter(r => r.valor_total === 0).length;
         console.log(`  💰 Con costo real: ${costoReal} | Con $0: ${costoCero} (${(costoCero / rows.length * 100).toFixed(1)}%)`);
 
-        // Count before upsert (trazabilidad)
-        const supabaseLog = createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { persistSession: false } });
-        const { data: countBefore } = await supabaseLog.rpc('fn_scrape_count_batch', { p_batch: month.batch });
-        const registrosAntes = (countBefore as number) ?? 0;
-        const startTime = Date.now();
-
         const { inserted, errors } = await upsertToSupabase(rows);
         totalInserted += inserted;
         totalErrors += errors;
         console.log(`  ✅ Supabase: ${inserted} insertados, ${errors} errores`);
-
-        // Count after upsert and log
-        const { data: countAfter } = await supabaseLog.rpc('fn_scrape_count_batch', { p_batch: month.batch });
-        const registrosDespues = (countAfter as number) ?? 0;
-        const nuevos = Math.max(registrosDespues - registrosAntes, 0);
-        const actualizados = inserted - nuevos;
-        const duracionSeg = Math.round((Date.now() - startTime) / 1000);
-
-        await supabaseLog.rpc('fn_scrape_costos_log', {
-          p_tipo: tipo,
-          p_batch: month.batch,
-          p_registros_antes: registrosAntes,
-          p_registros_despues: registrosDespues,
-          p_registros_nuevos: nuevos,
-          p_registros_actualizados: actualizados > 0 ? actualizados : 0,
-          p_registros_con_cero: costoCero,
-          p_duracion_seg: duracionSeg,
-        });
-        console.log(`  📋 Log: antes=${registrosAntes} después=${registrosDespues} nuevos=${nuevos} actualizados=${actualizados > 0 ? actualizados : 0}`);
       }
 
       totalMonths++;
