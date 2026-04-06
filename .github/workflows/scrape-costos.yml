@@ -2,7 +2,7 @@ name: Scrape Costos Contifico
 
 on:
   schedule:
-    - cron: '0 6 * * 1'  # Lunes 6am UTC (1am Ecuador)
+    - cron: '0 9 * * *'  # Diario 9am UTC (4am Ecuador)
   workflow_dispatch:
     inputs:
       desde:
