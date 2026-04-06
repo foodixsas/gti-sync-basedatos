@@ -82,8 +82,8 @@ async function downloadExcelForMonth(
 ): Promise<string | null> {
   console.log(`📥 Descargando: ${inicio} → ${fin}`);
 
-  await page.goto(MOVIMIENTOS_URL, { waitUntil: 'networkidle' });
-  await page.waitForTimeout(2000);
+  await page.goto(MOVIMIENTOS_URL, { waitUntil: 'load', timeout: 60000 });
+  await page.waitForTimeout(3000);
 
   // Select Tipo = ING (find the select that has ING option, not the empresa select)
   await page.evaluate(() => {
@@ -113,8 +113,8 @@ async function downloadExcelForMonth(
     const fn = (window as any).cambiarPagina;
     if (fn) fn(1);
   });
-  await page.waitForLoadState('networkidle');
-  await page.waitForTimeout(3000);
+  await page.waitForLoadState('load');
+  await page.waitForTimeout(5000);
 
   // Check if there are results
   const rowCount = await page.evaluate(() => document.querySelectorAll('table tbody tr').length);
