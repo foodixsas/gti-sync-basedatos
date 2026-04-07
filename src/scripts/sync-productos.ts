@@ -172,13 +172,20 @@ async function llenarFormProducto(page: Page, payload: ProductoPayload): Promise
   // pide — checkear si true, deschekear si false. Si solo checkeáramos
   // cuando true, los auto-marcados quedarían activos y romperían validación.
   async function setCheckbox(name: string, on: boolean) {
-    const loc = page.locator('input[name="' + name + '"]').first();
-    if (!(await loc.count())) return;
-    if (on) {
-      await loc.check({ force: true });
-    } else {
-      await loc.uncheck({ force: true });
-    }
+    // Contifico envuelve los checkboxes en widgets custom (bootstrap-switch /
+    // iCheck) que ocultan el <input> real con display:none. Playwright no puede
+    // .check() un elemento invisible, así que seteamos .checked vía JS y
+    // disparamos los eventos change/click para que el handler de Contifico
+    // sincronice el wrapper UI y la lógica de visibilidad de las cuentas.
+    await page.evaluate(function (args: { n: string; on: boolean }) {
+      const el = document.querySelector('input[name="' + args.n + '"]') as HTMLInputElement | null;
+      if (!el) return;
+      if (el.checked !== args.on) {
+        el.checked = args.on;
+        el.dispatchEvent(new Event('change', { bubbles: true }));
+        el.dispatchEvent(new Event('click', { bubbles: true }));
+      }
+    }, { n: name, on });
   }
 
   await setCheckbox('para_venta', payload.para_venta === true);
