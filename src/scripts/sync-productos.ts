@@ -216,34 +216,41 @@ async function llenarFormProducto(page: Page, payload: ProductoPayload): Promise
   // Esperar a que la URL cambie (Contifico redirige tras crear). Si hay error
   // de validación, el form se queda en /registrar2/ y este wait timeoutea.
   // En caso de timeout, capturamos las validaciones visibles para diagnóstico.
+  // Antes de esperar la navegación, snapshot del estado del form en consola
+  // para diagnosticar si el submit funcionó o si quedó bloqueado por validación.
+  await page.waitForTimeout(2000); // dar tiempo a que JS de validación corra
+  const preWaitDiag = await page.evaluate(() => {
+    const clean = (s: string) => s.replace(/\s+/g, ' ').trim();
+    const errors: string[] = [];
+    document.querySelectorAll('.alert-danger, .errorlist li, .has-error label, .field-error, span.error, .text-danger').forEach((el) => {
+      const t = clean(el.textContent ?? '');
+      if (t) errors.push(t.slice(0, 300));
+    });
+    document.querySelectorAll('input.is-invalid, input.has-error, .has-error input, .has-error select').forEach((el) => {
+      const name = (el as HTMLInputElement).name;
+      if (name) errors.push(`invalid:${name}`);
+    });
+    // Capturar TODOS los inputs visibles requeridos para entender qué falta
+    const required: Record<string, string> = {};
+    document.querySelectorAll('input[required], select[required]').forEach((el) => {
+      const e = el as HTMLInputElement | HTMLSelectElement;
+      if (e.name) required[e.name] = (e.value ?? '').slice(0, 50);
+    });
+    return {
+      url: window.location.href,
+      errors: errors.slice(0, 15),
+      required_fields_state: required,
+    };
+  }).catch((e) => ({ error: e instanceof Error ? e.message : 'evaluate failed' }));
+  console.log('🔍 PRE-WAIT DIAG:', JSON.stringify(preWaitDiag));
+
   try {
     await page.waitForURL((url) => !url.toString().includes('/registrar2/'), {
       timeout: 30000,
     });
   } catch (err) {
-    // Diagnóstico: capturar mensajes de validación del form Contifico
-    const diag = await page.evaluate(() => {
-      const clean = (s: string) => s.replace(/\s+/g, ' ').trim();
-      const errors: string[] = [];
-      // 1. Spans con clase de error de Bootstrap/Django
-      document.querySelectorAll('.alert-danger, .errorlist li, .has-error label, .field-error, span.error').forEach((el) => {
-        const t = clean(el.textContent ?? '');
-        if (t) errors.push(t.slice(0, 200));
-      });
-      // 2. Inputs con clase has-error o is-invalid
-      document.querySelectorAll('input.is-invalid, input.has-error, .has-error input').forEach((el) => {
-        const name = (el as HTMLInputElement).name;
-        if (name) errors.push(`invalid:${name}`);
-      });
-      return {
-        url: window.location.href,
-        errors: errors.slice(0, 10),
-      };
-    }).catch(() => null);
-    const diagStr = diag ? ` | DIAG=${JSON.stringify(diag)}` : '';
-    // No incluímos el stack largo de Playwright, solo la primera línea
     const shortMsg = err instanceof Error ? err.message.split('\n')[0] : 'waitForURL error';
-    throw new Error(shortMsg + diagStr);
+    throw new Error(shortMsg + ' | preDiag=' + JSON.stringify(preWaitDiag).slice(0, 1500));
   }
 }
 
