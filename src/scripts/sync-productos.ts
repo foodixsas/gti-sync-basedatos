@@ -223,27 +223,27 @@ async function llenarFormProducto(page: Page, payload: ProductoPayload): Promise
   } catch (err) {
     // Diagnóstico: capturar mensajes de validación del form Contifico
     const diag = await page.evaluate(() => {
+      const clean = (s: string) => s.replace(/\s+/g, ' ').trim();
       const errors: string[] = [];
       // 1. Spans con clase de error de Bootstrap/Django
       document.querySelectorAll('.alert-danger, .errorlist li, .has-error label, .field-error, span.error').forEach((el) => {
-        const t = (el.textContent ?? '').trim();
-        if (t) errors.push(t);
+        const t = clean(el.textContent ?? '');
+        if (t) errors.push(t.slice(0, 200));
       });
       // 2. Inputs con clase has-error o is-invalid
       document.querySelectorAll('input.is-invalid, input.has-error, .has-error input').forEach((el) => {
         const name = (el as HTMLInputElement).name;
         if (name) errors.push(`invalid:${name}`);
       });
-      // 3. Capturar URL actual + título
       return {
         url: window.location.href,
-        title: document.title,
-        errors: errors.slice(0, 20),
+        errors: errors.slice(0, 10),
       };
     }).catch(() => null);
-    const baseMsg = err instanceof Error ? err.message : 'waitForURL error';
-    const diagStr = diag ? ` | DIAG url=${diag.url} title="${diag.title}" errors=${JSON.stringify(diag.errors)}` : '';
-    throw new Error(baseMsg.slice(0, 200) + diagStr);
+    const diagStr = diag ? ` | DIAG=${JSON.stringify(diag)}` : '';
+    // No incluímos el stack largo de Playwright, solo la primera línea
+    const shortMsg = err instanceof Error ? err.message.split('\n')[0] : 'waitForURL error';
+    throw new Error(shortMsg + diagStr);
   }
 }
 
@@ -375,7 +375,7 @@ async function main(): Promise<void> {
           .update({
             status: finalStatus,
             attempts: newAttempts,
-            error_message: msg.slice(0, 500),
+            error_message: msg.slice(0, 2000),
             last_attempt_at: new Date().toISOString(),
             next_retry_at: isFinal ? null : calcularNextRetry(newAttempts).toISOString(),
           })
