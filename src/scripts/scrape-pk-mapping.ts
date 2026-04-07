@@ -194,24 +194,58 @@ async function scrapeEntity(page: Page, cfg: EntityConfig): Promise<{ inserted: 
     });
   }
 
-  // 4. UPSERT en mapping table (idempotente: refresca updated_at)
-  if (upsertRows.length > 0) {
+  // 4. Deduplicar por (entity_type, api_id) antes del UPSERT
+  // Postgres tira "ON CONFLICT DO UPDATE command cannot affect row a second
+  // time" si dos rows del batch tienen el mismo conflict target. Esto pasa
+  // cuando dos django_pk distintos matchean al mismo nombre → mismo api_id.
+  // Estrategia: nos quedamos con el primer match y loggeamos los duplicados
+  // para revisión humana.
+  const dedupMap = new Map<string, MappingRow>();
+  const duplicates: Array<{ api_id: string; nombre: string; pks: number[] }> = [];
+  for (const row of upsertRows) {
+    const key = row.entity_type + ':' + row.api_id;
+    const existing = dedupMap.get(key);
+    if (existing) {
+      // Mismo api_id, dos django_pk distintos
+      const dup = duplicates.find((d) => d.api_id === row.api_id);
+      if (dup) {
+        if (!dup.pks.includes(row.django_pk)) dup.pks.push(row.django_pk);
+      } else {
+        duplicates.push({ api_id: row.api_id, nombre: row.nombre, pks: [existing.django_pk, row.django_pk] });
+      }
+      // Mantener el primero (no override). Estabilidad entre runs.
+      continue;
+    }
+    dedupMap.set(key, row);
+  }
+  const dedupedRows = Array.from(dedupMap.values());
+
+  if (duplicates.length > 0) {
+    console.log(`   ⚠️  ${duplicates.length} api_id con múltiples django_pk (nombre colisionado en Contifico):`);
+    for (const d of duplicates.slice(0, 10)) {
+      console.log(`      ${d.nombre} → api_id=${d.api_id} django_pks=${JSON.stringify(d.pks)}`);
+    }
+    if (duplicates.length > 10) console.log(`      ...y ${duplicates.length - 10} más`);
+  }
+
+  // 5. UPSERT en mapping table (idempotente: refresca updated_at)
+  if (dedupedRows.length > 0) {
     const { error: upErr } = await supabase
       .from(MAPPING_TABLE)
-      .upsert(upsertRows, { onConflict: 'entity_type,api_id' });
+      .upsert(dedupedRows, { onConflict: 'entity_type,api_id' });
     if (upErr) {
       throw new Error(`Error upsert ${cfg.entity_type}: ${upErr.message}`);
     }
   }
 
-  console.log(`   ✅ ${upsertRows.length} mapeos guardados, ${skipped.length} skipped`);
+  console.log(`   ✅ ${dedupedRows.length} mapeos guardados, ${skipped.length} skipped, ${upsertRows.length - dedupedRows.length} duplicados`);
   if (skipped.length > 0 && skipped.length <= 15) {
     console.log(`      skipped names: ${JSON.stringify(skipped)}`);
   } else if (skipped.length > 15) {
     console.log(`      first 15 skipped: ${JSON.stringify(skipped.slice(0, 15))}`);
   }
 
-  return { inserted: upsertRows.length, skipped };
+  return { inserted: dedupedRows.length, skipped };
 }
 
 // ─── Main ──────────────────────────────────────────────────────────────────
