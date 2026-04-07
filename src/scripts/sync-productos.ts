@@ -215,9 +215,36 @@ async function llenarFormProducto(page: Page, payload: ProductoPayload): Promise
 
   // Esperar a que la URL cambie (Contifico redirige tras crear). Si hay error
   // de validación, el form se queda en /registrar2/ y este wait timeoutea.
-  await page.waitForURL((url) => !url.toString().includes('/registrar2/'), {
-    timeout: 30000,
-  });
+  // En caso de timeout, capturamos las validaciones visibles para diagnóstico.
+  try {
+    await page.waitForURL((url) => !url.toString().includes('/registrar2/'), {
+      timeout: 30000,
+    });
+  } catch (err) {
+    // Diagnóstico: capturar mensajes de validación del form Contifico
+    const diag = await page.evaluate(() => {
+      const errors: string[] = [];
+      // 1. Spans con clase de error de Bootstrap/Django
+      document.querySelectorAll('.alert-danger, .errorlist li, .has-error label, .field-error, span.error').forEach((el) => {
+        const t = (el.textContent ?? '').trim();
+        if (t) errors.push(t);
+      });
+      // 2. Inputs con clase has-error o is-invalid
+      document.querySelectorAll('input.is-invalid, input.has-error, .has-error input').forEach((el) => {
+        const name = (el as HTMLInputElement).name;
+        if (name) errors.push(`invalid:${name}`);
+      });
+      // 3. Capturar URL actual + título
+      return {
+        url: window.location.href,
+        title: document.title,
+        errors: errors.slice(0, 20),
+      };
+    }).catch(() => null);
+    const baseMsg = err instanceof Error ? err.message : 'waitForURL error';
+    const diagStr = diag ? ` | DIAG url=${diag.url} title="${diag.title}" errors=${JSON.stringify(diag.errors)}` : '';
+    throw new Error(baseMsg.slice(0, 200) + diagStr);
+  }
 }
 
 // ─── Backoff ───────────────────────────────────────────────────────────────
