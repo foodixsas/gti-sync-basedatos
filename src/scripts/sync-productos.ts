@@ -166,25 +166,34 @@ async function llenarFormProducto(page: Page, payload: ProductoPayload): Promise
   await page.selectOption('select[name="iva"]', ivaValue);
 
   // ── Contabilidad ──
-  // Los checkboxes controlan la visibilidad de su cuenta asociada. Los checkeamos
-  // y luego seteamos el hidden de la cuenta correspondiente.
-  if (payload.para_venta) {
-    await page.check('input[name="para_venta"]');
-    if (payload.cuenta_venta_id) {
-      await setHiddenValue(page, 'cuenta_venta_id', payload.cuenta_venta_id);
+  // Los checkboxes controlan la visibilidad de su cuenta asociada. Contifico
+  // los auto-marca cuando se setea la categoría según las cuentas que esa
+  // categoría tiene. Por eso debemos forzar el estado EXACTO que el payload
+  // pide — checkear si true, deschekear si false. Si solo checkeáramos
+  // cuando true, los auto-marcados quedarían activos y romperían validación.
+  async function setCheckbox(name: string, on: boolean) {
+    const loc = page.locator('input[name="' + name + '"]').first();
+    if (!(await loc.count())) return;
+    if (on) {
+      await loc.check({ force: true });
+    } else {
+      await loc.uncheck({ force: true });
     }
   }
-  if (payload.para_compra) {
-    await page.check('input[name="para_compra"]');
-    if (payload.cuenta_compra_id) {
-      await setHiddenValue(page, 'cuenta_compra_id', payload.cuenta_compra_id);
-    }
+
+  await setCheckbox('para_venta', payload.para_venta === true);
+  await setCheckbox('para_compra', payload.para_compra === true);
+  await setCheckbox('inventariable', payload.inventariable === true);
+
+  // Las cuentas se setean SOLO si su flag está activo
+  if (payload.para_venta && payload.cuenta_venta_id) {
+    await setHiddenValue(page, 'cuenta_venta_id', payload.cuenta_venta_id);
   }
-  if (payload.inventariable) {
-    await page.check('input[name="inventariable"]');
-    if (payload.cuenta_costo_id) {
-      await setHiddenValue(page, 'cuenta_costo_id', payload.cuenta_costo_id);
-    }
+  if (payload.para_compra && payload.cuenta_compra_id) {
+    await setHiddenValue(page, 'cuenta_compra_id', payload.cuenta_compra_id);
+  }
+  if (payload.inventariable && payload.cuenta_costo_id) {
+    await setHiddenValue(page, 'cuenta_costo_id', payload.cuenta_costo_id);
   }
   if (payload.stock_minimo != null) {
     await fillIfVisible(page, 'input[name="minimo"]', String(payload.stock_minimo));
