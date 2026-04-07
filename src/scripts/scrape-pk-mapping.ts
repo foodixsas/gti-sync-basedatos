@@ -95,31 +95,41 @@ async function loginContifico(page: Page): Promise<void> {
 }
 
 // ─── Fetch + parse de una página del autocomplete ──────────────────────────
+//
+// Usa page.request en vez de fetch() dentro de page.evaluate, porque
+// Contifico hace navegaciones internas tras el login (long-polling, redirects)
+// que destruyen el execution context del page mientras evaluate está
+// corriendo. APIRequestContext de Playwright comparte las cookies del
+// browser context pero no depende del page navigation state.
+//
+// El parsing del HTML lo hacemos en Node con regex (sin DOM disponible
+// fuera del browser context) — el formato es estable: <a id="N">NOMBRE</a>.
 async function fetchPage(page: Page, endpoint: string, pagina: number): Promise<{ entries: ScrapedEntry[]; total_pages: number }> {
   const url = `${CONTIFICO_BASE}${endpoint}?term=&pagina=${pagina}`;
-  // Hacemos fetch + parsing dentro del browser context (mantiene la cookie de sesión)
-  // Sin arrow functions ni helpers nombrados (esbuild __name issue).
-  const result = await page.evaluate(async function (u: string) {
-    const r = await fetch(u, { credentials: 'include' });
-    const t = await r.text();
-    const div = document.createElement('div');
-    div.innerHTML = t;
-    const anchors = div.querySelectorAll('a[id]');
-    const out: Array<{ django_pk: number; nombre: string }> = [];
-    for (let i = 0; i < anchors.length; i++) {
-      const a = anchors[i] as HTMLAnchorElement;
-      if (/^\d+$/.test(a.id)) {
-        const txt = (a.textContent || '').replace(/\s+/g, ' ').trim();
-        if (txt) out.push({ django_pk: parseInt(a.id, 10), nombre: txt });
-      }
+  const response = await page.request.get(url);
+  if (!response.ok()) {
+    throw new Error(`HTTP ${response.status()} en ${endpoint}?pagina=${pagina}`);
+  }
+  const html = await response.text();
+
+  // Extraer anchors <a id="NUMERO">NOMBRE</a> con regex
+  const entries: ScrapedEntry[] = [];
+  const anchorRegex = /<a[^>]*\bid=["'](\d+)["'][^>]*>([\s\S]*?)<\/a>/gi;
+  let m: RegExpExecArray | null;
+  while ((m = anchorRegex.exec(html)) !== null) {
+    const pk = parseInt(m[1], 10);
+    // Limpiar tags HTML internos y whitespace del nombre
+    const rawName = m[2].replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/\s+/g, ' ').trim();
+    if (rawName && pk > 0) {
+      entries.push({ django_pk: pk, nombre: rawName });
     }
-    // Detectar total de páginas del texto "Página X de Y"
-    const allText = div.textContent || '';
-    const m = allText.match(/P[áa]gina\s+(\d+)\s+de\s+(\d+)/i);
-    const total = m ? parseInt(m[2], 10) : 1;
-    return { entries: out, total_pages: total };
-  }, url);
-  return result;
+  }
+
+  // Detectar total de páginas del texto "Página X de Y"
+  const pagiMatch = html.match(/P[áa]gina\s+(\d+)\s+de\s+(\d+)/i);
+  const total_pages = pagiMatch ? parseInt(pagiMatch[2], 10) : 1;
+
+  return { entries, total_pages };
 }
 
 // ─── Scraper de UNA entidad completa ───────────────────────────────────────
