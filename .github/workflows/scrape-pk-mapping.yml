@@ -1,0 +1,39 @@
+name: Scrape PK Mapping (Contifico → Django)
+
+# Refresca la tabla gfc_matriz_productos_contifico_pk_mapping_productos
+# que traduce los IDs alfanuméricos de la API REST de Contifico hacia los
+# enteros internos de Django usados por el form web. Necesario para que
+# el script sync-productos pueda llenar correctamente los inputs hidden
+# (categoria_id, unidad_id, cuenta_*_id) del form de Contifico.
+
+on:
+  workflow_dispatch:
+  schedule:
+    # Lunes 7am UTC (2am Ecuador) — semanal
+    - cron: '0 7 * * 1'
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Install Playwright Chromium
+        run: npx playwright install chromium --with-deps
+
+      - name: Run scrape-pk-mapping
+        env:
+          CONTIFICO_EMAIL: ${{ secrets.CONTIFICO_EMAIL }}
+          CONTIFICO_PASSWORD: ${{ secrets.CONTIFICO_PASSWORD }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: npx tsx src/scripts/scrape-pk-mapping.ts
