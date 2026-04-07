@@ -65,12 +65,15 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
 // ─── Login ─────────────────────────────────────────────────────────────────
 async function loginContifico(page: Page): Promise<void> {
   console.log('🔐 Login a Contifico...');
-  await page.goto(LOGIN_URL, { waitUntil: 'networkidle' });
+  // Usar 'load' en vez de 'networkidle' — Contifico tiene long-polling/keep-alive
+  // que nunca llega a estado idle. Mismo fix que se aplicó en scrape-costos.ts
+  // (commit fc6213b "Fix timeout — use 'load' instead of 'networkidle'").
+  await page.goto(LOGIN_URL, { waitUntil: 'load', timeout: 60000 });
   await page.fill('input[name="username"], input[type="email"], #id_username', CONTIFICO_EMAIL);
   await page.fill('input[name="password"], input[type="password"], #id_password', CONTIFICO_PASSWORD);
   await page.click('button[type="submit"], input[type="submit"]');
   await page.waitForURL('**/sistema/**', { timeout: 30000 });
-  await page.waitForLoadState('networkidle');
+  await page.waitForLoadState('load');
   await page.waitForTimeout(2000);
   console.log('✅ Login OK');
 }
@@ -93,7 +96,8 @@ async function setHiddenValue(page: Page, name: string, value: string): Promise<
 }
 
 async function llenarFormProducto(page: Page, payload: ProductoPayload): Promise<void> {
-  await page.goto(PRODUCTO_NUEVO_URL, { waitUntil: 'networkidle', timeout: 60000 });
+  // 'load' en vez de 'networkidle' — ver nota en loginContifico.
+  await page.goto(PRODUCTO_NUEVO_URL, { waitUntil: 'load', timeout: 60000 });
   await page.waitForSelector('form[name="productoForm"]', { timeout: 15000 });
 
   // ── Datos generales ──
