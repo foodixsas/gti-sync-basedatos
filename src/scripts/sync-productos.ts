@@ -79,6 +79,27 @@ async function loginContifico(page: Page): Promise<void> {
 }
 
 // ─── Llenado del form ──────────────────────────────────────────────────────
+/**
+ * Fill defensivo: solo escribe si el input está visible. Contifico tiene
+ * secciones del form que se ocultan según los checkboxes (para_venta /
+ * para_compra / inventariable). Tratar de fill un input invisible
+ * timeoutea Playwright. En vez de meter gates por sección, hacemos el
+ * gating en runtime: si no se ve, se skipea con un warning.
+ */
+async function fillIfVisible(page: Page, selector: string, value: string): Promise<boolean> {
+  const loc = page.locator(selector).first();
+  try {
+    if (await loc.isVisible({ timeout: 1000 })) {
+      await loc.fill(value);
+      return true;
+    }
+  } catch {
+    // selector no encontrado o no visible — skip
+  }
+  console.log(`   ⚠️  skip ${selector} (no visible)`);
+  return false;
+}
+
 async function setHiddenValue(page: Page, name: string, value: string): Promise<void> {
   // Para campos hidden + quicksearch (categoria_id, unidad_id, cuenta_venta_id,
   // cuenta_compra_id, cuenta_costo_id) seteamos directamente el value del input
@@ -130,12 +151,12 @@ async function llenarFormProducto(page: Page, payload: ProductoPayload): Promise
     await page.fill('textarea[name="descripcion"]', payload.descripcion);
   }
 
-  // ── Precios ──
-  if (payload.pvp1 != null) await page.fill('input[name="pvp1"]', String(payload.pvp1));
-  if (payload.pvp2 != null) await page.fill('input[name="pvp2"]', String(payload.pvp2));
-  if (payload.pvp3 != null) await page.fill('input[name="pvp3"]', String(payload.pvp3));
+  // ── Precios ── (todos pueden estar ocultos si Para Venta no aplica)
+  if (payload.pvp1 != null) await fillIfVisible(page, 'input[name="pvp1"]', String(payload.pvp1));
+  if (payload.pvp2 != null) await fillIfVisible(page, 'input[name="pvp2"]', String(payload.pvp2));
+  if (payload.pvp3 != null) await fillIfVisible(page, 'input[name="pvp3"]', String(payload.pvp3));
   if (payload.pvp_distribuidor != null) {
-    await page.fill('input[name="pvp_distribuidor"]', String(payload.pvp_distribuidor));
+    await fillIfVisible(page, 'input[name="pvp_distribuidor"]', String(payload.pvp_distribuidor));
   }
 
   // ── Impuestos ──
@@ -165,15 +186,19 @@ async function llenarFormProducto(page: Page, payload: ProductoPayload): Promise
     }
   }
   if (payload.stock_minimo != null) {
-    await page.fill('input[name="minimo"]', String(payload.stock_minimo));
+    await fillIfVisible(page, 'input[name="minimo"]', String(payload.stock_minimo));
   }
 
   // ── Configuraciones ──
   if (payload.para_pos) {
-    await page.check('input[name="para_pos"]');
+    // para_pos checkbox también puede estar oculto si la sección POS no aplica
+    const posLoc = page.locator('input[name="para_pos"]').first();
+    if (await posLoc.isVisible({ timeout: 1000 }).catch(() => false)) {
+      await posLoc.check();
+    }
   }
   if (payload.lead_time != null) {
-    await page.fill('input[name="dias_plazo"]', String(payload.lead_time));
+    await fillIfVisible(page, 'input[name="dias_plazo"]', String(payload.lead_time));
   }
 
   // ── Submit ──
