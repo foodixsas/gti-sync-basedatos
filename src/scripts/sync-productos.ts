@@ -234,6 +234,33 @@ async function llenarFormProducto(page: Page, payload: ProductoPayload): Promise
   // Esperar a que la URL cambie (Contifico redirige tras crear). Si hay error
   // de validación, el form se queda en /registrar2/ y este wait timeoutea.
   // En caso de timeout, capturamos las validaciones visibles para diagnóstico.
+  // ── Defaults defensivos para campos integer hidden ──
+  // Contifico mantiene en el HTML campos como dias_plazo, costo_maximo,
+  // porcentaje_ice, etc. aunque la sección "Inventariable" esté apagada.
+  // Django los valida en POST como IntegerField y rechaza valores vacíos
+  // con "Introduzca un número entero". Set defaults seguros antes de submit.
+  await page.evaluate(function () {
+    const form = document.querySelector('form[name="productoForm"]');
+    if (!form) return;
+    // Lista de campos integer-typed conocidos de Contifico que pueden estar vacíos
+    const intFields = ['dias_plazo', 'costo_maximo', 'porcentaje_ice', 'valor_ice', 'minimo'];
+    intFields.forEach(function (name) {
+      const el = form.querySelector('input[name="' + name + '"]') as HTMLInputElement | null;
+      if (el && (el.value || '').trim() === '') {
+        el.value = '0';
+        el.dispatchEvent(new Event('change', { bubbles: true }));
+      }
+    });
+    // Red de seguridad: cualquier input[type="number"] vacío en el form → 0
+    const numInputs = form.querySelectorAll('input[type="number"]');
+    for (let i = 0; i < numInputs.length; i++) {
+      const el = numInputs[i] as HTMLInputElement;
+      if ((el.value || '').trim() === '') {
+        el.value = '0';
+      }
+    }
+  });
+
   // Antes de esperar la navegación, snapshot del estado del form en consola
   // para diagnosticar si el submit funcionó o si quedó bloqueado por validación.
   await page.waitForTimeout(2000); // dar tiempo a que JS de validación corra
