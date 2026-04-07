@@ -441,27 +441,14 @@ async function llenarFormProducto(page: Page, payload: ProductoPayload): Promise
     }
   }
 
-  // ── Submit ──
-  // Llamamos GrabarProducto() directamente para evitar bugs de selector del botón.
-  // Es la función global que Contifico expone (= document.forms.productoForm.submit()).
-  // Sin arrow function (tsx/esbuild __name issue)
-  await page.evaluate(function () {
-    const w = window as unknown as { GrabarProducto?: () => void };
-    if (typeof w.GrabarProducto === 'function') {
-      w.GrabarProducto();
-    } else {
-      (document.forms as unknown as Record<string, HTMLFormElement>).productoForm.submit();
-    }
-  });
-
-  // Esperar a que la URL cambie (Contifico redirige tras crear). Si hay error
-  // de validación, el form se queda en /registrar2/ y este wait timeoutea.
-  // En caso de timeout, capturamos las validaciones visibles para diagnóstico.
   // ── Defaults defensivos para campos integer hidden ──
   // Contifico mantiene en el HTML campos como dias_plazo, costo_maximo,
   // porcentaje_ice, etc. aunque la sección "Inventariable" esté apagada.
   // Django los valida en POST como IntegerField y rechaza valores vacíos
-  // con "Introduzca un número entero". Set defaults seguros antes de submit.
+  // con "Introduzca un número entero". Set defaults seguros ANTES del submit.
+  // CRÍTICO: este bloque DEBE ir antes del submit. Si va después,
+  // GrabarProducto() ya disparó la navegación y page.evaluate crashea con
+  // "Execution context destroyed". Bug histórico al implementar PRO/COP.
   await page.evaluate(function () {
     const form = document.querySelector('form[name="productoForm"]');
     if (!form) return;
@@ -483,6 +470,23 @@ async function llenarFormProducto(page: Page, payload: ProductoPayload): Promise
       }
     }
   });
+
+  // ── Submit ──
+  // Llamamos GrabarProducto() directamente para evitar bugs de selector del botón.
+  // Es la función global que Contifico expone (= document.forms.productoForm.submit()).
+  // Sin arrow function (tsx/esbuild __name issue)
+  await page.evaluate(function () {
+    const w = window as unknown as { GrabarProducto?: () => void };
+    if (typeof w.GrabarProducto === 'function') {
+      w.GrabarProducto();
+    } else {
+      (document.forms as unknown as Record<string, HTMLFormElement>).productoForm.submit();
+    }
+  });
+
+  // Esperar a que la URL cambie (Contifico redirige tras crear). Si hay error
+  // de validación, el form se queda en /registrar2/ y este wait timeoutea.
+  // En caso de timeout, capturamos las validaciones visibles para diagnóstico.
 
   // Antes de esperar la navegación, snapshot del estado del form en consola
   // para diagnosticar si el submit funcionó o si quedó bloqueado por validación.
