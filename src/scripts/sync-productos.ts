@@ -486,51 +486,54 @@ async function llenarFormProducto(page: Page, payload: ProductoPayload): Promise
 
   // Esperar a que la URL cambie (Contifico redirige tras crear). Si hay error
   // de validación, el form se queda en /registrar2/ y este wait timeoutea.
-  // En caso de timeout, capturamos las validaciones visibles para diagnóstico.
-
-  // Antes de esperar la navegación, snapshot del estado del form en consola
-  // para diagnosticar si el submit funcionó o si quedó bloqueado por validación.
-  await page.waitForTimeout(2000); // dar tiempo a que JS de validación corra
+  // En caso de timeout, capturamos el estado del form para diagnóstico (DESPUÉS
+  // del timeout, no antes — antes el DOM puede estar en transición).
   // IMPORTANTE: dentro de page.evaluate NO usar arrow functions ni helpers
   // nombrados — tsx/esbuild las compila con __name() helper que no existe
   // en el browser context (UtilityScript). Usar function() declarations o
   // inline puro. Por eso este bloque está escrito tan plano.
-  const preWaitDiag = await page.evaluate(function () {
-    const errors: string[] = [];
-    const errSel = '.alert-danger, .errorlist li, .has-error label, .field-error, span.error, .text-danger';
-    const errNodes = document.querySelectorAll(errSel);
-    for (let i = 0; i < errNodes.length; i++) {
-      const el = errNodes[i];
-      const raw = el.textContent || '';
-      const cleaned = raw.replace(/\s+/g, ' ').trim();
-      if (cleaned) errors.push(cleaned.substring(0, 300));
-    }
-    const invalidNodes = document.querySelectorAll('input.is-invalid, input.has-error, .has-error input, .has-error select');
-    for (let i = 0; i < invalidNodes.length; i++) {
-      const el = invalidNodes[i] as HTMLInputElement;
-      if (el.name) errors.push('invalid:' + el.name);
-    }
-    const required: Record<string, string> = {};
-    const reqNodes = document.querySelectorAll('input[required], select[required]');
-    for (let i = 0; i < reqNodes.length; i++) {
-      const e = reqNodes[i] as HTMLInputElement;
-      if (e.name) required[e.name] = (e.value || '').substring(0, 50);
-    }
-    return {
-      url: window.location.href,
-      errors: errors.slice(0, 15),
-      required_fields_state: required,
-    };
-  }).catch(function (e) { return { error: e instanceof Error ? e.message : 'evaluate failed' }; });
-  console.log('🔍 PRE-WAIT DIAG:', JSON.stringify(preWaitDiag));
-
   try {
     await page.waitForURL((url) => !url.toString().includes('/registrar2/'), {
       timeout: 30000,
     });
   } catch (err) {
+    // El wait timeoutea → form se quedó en /registrar2/. Capturar estado
+    // FINAL del form para diagnosticar (página ya settled).
+    await page.waitForTimeout(500);
+    const diag = await page.evaluate(function () {
+      const errors: string[] = [];
+      const errSel = '.alert-danger, .errorlist li, .has-error label, .field-error, span.error, .text-danger, .errornote, .ui-state-error, .toast-error, .notify-error';
+      const errNodes = document.querySelectorAll(errSel);
+      for (let i = 0; i < errNodes.length; i++) {
+        const el = errNodes[i];
+        const raw = el.textContent || '';
+        const cleaned = raw.replace(/\s+/g, ' ').trim();
+        if (cleaned) errors.push(cleaned.substring(0, 300));
+      }
+      const invalidNodes = document.querySelectorAll('input.is-invalid, input.has-error, .has-error input, .has-error select');
+      for (let i = 0; i < invalidNodes.length; i++) {
+        const el = invalidNodes[i] as HTMLInputElement;
+        if (el.name) errors.push('invalid:' + el.name);
+      }
+      const required: Record<string, string> = {};
+      const reqNodes = document.querySelectorAll('input[required], select[required]');
+      for (let i = 0; i < reqNodes.length; i++) {
+        const e = reqNodes[i] as HTMLInputElement;
+        if (e.name) required[e.name] = (e.value || '').substring(0, 50);
+      }
+      // Body text fragment para capturar errores que no usen los selectores conocidos
+      const bodyText = (document.body && document.body.innerText || '').replace(/\s+/g, ' ').trim();
+      const bodySnippet = bodyText.length > 600 ? bodyText.substring(0, 600) : bodyText;
+      return {
+        url: window.location.href,
+        errors: errors.slice(0, 15),
+        required_fields_state: required,
+        body_snippet: bodySnippet,
+      };
+    }).catch(function (e) { return { error: e instanceof Error ? e.message : 'evaluate failed' }; });
+    console.log('🔍 POST-TIMEOUT DIAG:', JSON.stringify(diag));
     const shortMsg = err instanceof Error ? err.message.split('\n')[0] : 'waitForURL error';
-    throw new Error(shortMsg + ' | preDiag=' + JSON.stringify(preWaitDiag).slice(0, 1500));
+    throw new Error(shortMsg + ' | diag=' + JSON.stringify(diag).slice(0, 1500));
   }
 }
 
