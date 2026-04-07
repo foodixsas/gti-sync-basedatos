@@ -107,10 +107,11 @@ async function setHiddenValue(page: Page, name: string, value: string): Promise<
   // haya disparado en el front, este approach FALLARÁ y habrá que migrar a
   // simular el click + búsqueda + selección del resultado en el popup.
   // TODO[v2]: validar comportamiento real con el primer producto de prueba en GHA.
-  await page.evaluate(({ n, v }) => {
-    const el = document.querySelector(`input[name="${n}"]`) as HTMLInputElement | null;
+  // Sin arrow function dentro del evaluate (tsx/esbuild __name issue)
+  await page.evaluate(function (args: { n: string; v: string }) {
+    const el = document.querySelector('input[name="' + args.n + '"]') as HTMLInputElement | null;
     if (el) {
-      el.value = v;
+      el.value = args.v;
       el.dispatchEvent(new Event('change', { bubbles: true }));
     }
   }, { n: name, v: value });
@@ -204,7 +205,8 @@ async function llenarFormProducto(page: Page, payload: ProductoPayload): Promise
   // ── Submit ──
   // Llamamos GrabarProducto() directamente para evitar bugs de selector del botón.
   // Es la función global que Contifico expone (= document.forms.productoForm.submit()).
-  await page.evaluate(() => {
+  // Sin arrow function (tsx/esbuild __name issue)
+  await page.evaluate(function () {
     const w = window as unknown as { GrabarProducto?: () => void };
     if (typeof w.GrabarProducto === 'function') {
       w.GrabarProducto();
@@ -219,29 +221,37 @@ async function llenarFormProducto(page: Page, payload: ProductoPayload): Promise
   // Antes de esperar la navegación, snapshot del estado del form en consola
   // para diagnosticar si el submit funcionó o si quedó bloqueado por validación.
   await page.waitForTimeout(2000); // dar tiempo a que JS de validación corra
-  const preWaitDiag = await page.evaluate(() => {
-    const clean = (s: string) => s.replace(/\s+/g, ' ').trim();
+  // IMPORTANTE: dentro de page.evaluate NO usar arrow functions ni helpers
+  // nombrados — tsx/esbuild las compila con __name() helper que no existe
+  // en el browser context (UtilityScript). Usar function() declarations o
+  // inline puro. Por eso este bloque está escrito tan plano.
+  const preWaitDiag = await page.evaluate(function () {
     const errors: string[] = [];
-    document.querySelectorAll('.alert-danger, .errorlist li, .has-error label, .field-error, span.error, .text-danger').forEach((el) => {
-      const t = clean(el.textContent ?? '');
-      if (t) errors.push(t.slice(0, 300));
-    });
-    document.querySelectorAll('input.is-invalid, input.has-error, .has-error input, .has-error select').forEach((el) => {
-      const name = (el as HTMLInputElement).name;
-      if (name) errors.push(`invalid:${name}`);
-    });
-    // Capturar TODOS los inputs visibles requeridos para entender qué falta
+    const errSel = '.alert-danger, .errorlist li, .has-error label, .field-error, span.error, .text-danger';
+    const errNodes = document.querySelectorAll(errSel);
+    for (let i = 0; i < errNodes.length; i++) {
+      const el = errNodes[i];
+      const raw = el.textContent || '';
+      const cleaned = raw.replace(/\s+/g, ' ').trim();
+      if (cleaned) errors.push(cleaned.substring(0, 300));
+    }
+    const invalidNodes = document.querySelectorAll('input.is-invalid, input.has-error, .has-error input, .has-error select');
+    for (let i = 0; i < invalidNodes.length; i++) {
+      const el = invalidNodes[i] as HTMLInputElement;
+      if (el.name) errors.push('invalid:' + el.name);
+    }
     const required: Record<string, string> = {};
-    document.querySelectorAll('input[required], select[required]').forEach((el) => {
-      const e = el as HTMLInputElement | HTMLSelectElement;
-      if (e.name) required[e.name] = (e.value ?? '').slice(0, 50);
-    });
+    const reqNodes = document.querySelectorAll('input[required], select[required]');
+    for (let i = 0; i < reqNodes.length; i++) {
+      const e = reqNodes[i] as HTMLInputElement;
+      if (e.name) required[e.name] = (e.value || '').substring(0, 50);
+    }
     return {
       url: window.location.href,
       errors: errors.slice(0, 15),
       required_fields_state: required,
     };
-  }).catch((e) => ({ error: e instanceof Error ? e.message : 'evaluate failed' }));
+  }).catch(function (e) { return { error: e instanceof Error ? e.message : 'evaluate failed' }; });
   console.log('🔍 PRE-WAIT DIAG:', JSON.stringify(preWaitDiag));
 
   try {
