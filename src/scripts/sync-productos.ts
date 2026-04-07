@@ -13,6 +13,7 @@ const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
 const QUEUE_TABLE = 'gfc_matriz_productos_sync_queue';
 const QUEUE_SCHEMA = 'gfc_finanzas';
+const PK_MAPPING_TABLE = 'gfc_matriz_productos_contifico_pk_mapping_productos';
 
 // Sentinela para "shelved" (PRO/COP no soportados v1): no se vuelve a pickear
 // hasta v2 cuando se actualice el código que los soporte.
@@ -61,6 +62,85 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
   auth: { persistSession: false },
   db: { schema: QUEUE_SCHEMA },
 });
+
+// ─── PK Mapping API → Django ───────────────────────────────────────────────
+// Contifico expone DOS sistemas de IDs distintos. La API REST usa
+// alfanuméricos (xBleXogD1UkjodrN) almacenados en contifico_raw.cat_*. El
+// form web usa enteros internos de Django (331140) en los inputs hidden
+// como categoria_id, unidad_id, cuenta_*_id. Esta función traduce un
+// payload con api_ids al equivalente con django_pks usando la tabla
+// gfc_matriz_productos_contifico_pk_mapping_productos (popul vía workflow
+// scrape-pk-mapping.yml).
+//
+// Si algún api_id no tiene mapping → throw, para que el row falle con
+// mensaje claro pidiendo refrescar el scraper.
+interface ResolvedPks {
+  categoria: string | null;
+  unidad: string | null;
+  cuenta_venta: string | null;
+  cuenta_compra: string | null;
+  cuenta_costo: string | null;
+}
+
+async function resolveDjangoPks(payload: ProductoPayload): Promise<ResolvedPks> {
+  const need: Array<{ entity_type: string; api_id: string; field: keyof ResolvedPks }> = [];
+  if (payload.categoria_id) need.push({ entity_type: 'categoria', api_id: payload.categoria_id, field: 'categoria' });
+  if (payload.unidad_id) need.push({ entity_type: 'unidad', api_id: payload.unidad_id, field: 'unidad' });
+  if (payload.cuenta_venta_id) need.push({ entity_type: 'cuenta_contable', api_id: payload.cuenta_venta_id, field: 'cuenta_venta' });
+  if (payload.cuenta_compra_id) need.push({ entity_type: 'cuenta_contable', api_id: payload.cuenta_compra_id, field: 'cuenta_compra' });
+  if (payload.cuenta_costo_id) need.push({ entity_type: 'cuenta_contable', api_id: payload.cuenta_costo_id, field: 'cuenta_costo' });
+
+  const result: ResolvedPks = {
+    categoria: null,
+    unidad: null,
+    cuenta_venta: null,
+    cuenta_compra: null,
+    cuenta_costo: null,
+  };
+
+  if (need.length === 0) return result;
+
+  // Una query por entity_type para minimizar round-trips
+  const byType: Record<string, string[]> = {};
+  for (const n of need) {
+    if (!byType[n.entity_type]) byType[n.entity_type] = [];
+    byType[n.entity_type].push(n.api_id);
+  }
+
+  const resolved = new Map<string, number>(); // key = entity_type:api_id
+  for (const [entity_type, apiIds] of Object.entries(byType)) {
+    const { data, error } = await supabase
+      .from(PK_MAPPING_TABLE)
+      .select('api_id, django_pk')
+      .eq('entity_type', entity_type)
+      .in('api_id', apiIds);
+    if (error) {
+      throw new Error(`Error consultando ${PK_MAPPING_TABLE}[${entity_type}]: ${error.message}`);
+    }
+    for (const row of (data ?? []) as Array<{ api_id: string; django_pk: number }>) {
+      resolved.set(`${entity_type}:${row.api_id}`, row.django_pk);
+    }
+  }
+
+  // Verificar que TODOS los api_ids necesarios se resolvieron
+  const missing: string[] = [];
+  for (const n of need) {
+    const pk = resolved.get(`${n.entity_type}:${n.api_id}`);
+    if (pk == null) {
+      missing.push(`${n.entity_type}/${n.api_id}`);
+    } else {
+      result[n.field] = String(pk);
+    }
+  }
+
+  if (missing.length > 0) {
+    throw new Error(
+      `PK mapping faltante para: ${missing.join(', ')}. Refrescar scraper scrape-pk-mapping.yml`
+    );
+  }
+
+  return result;
+}
 
 // ─── Login ─────────────────────────────────────────────────────────────────
 async function loginContifico(page: Page): Promise<void> {
@@ -118,6 +198,11 @@ async function setHiddenValue(page: Page, name: string, value: string): Promise<
 }
 
 async function llenarFormProducto(page: Page, payload: ProductoPayload): Promise<void> {
+  // ── 0. Resolver IDs alfanuméricos → enteros Django ANTES de tocar el form
+  // Si esto falla, el row se marca como error sin haber abierto el form.
+  const pks = await resolveDjangoPks(payload);
+  console.log(`   🔑 PKs resueltas: cat=${pks.categoria} und=${pks.unidad} cv=${pks.cuenta_venta} cc=${pks.cuenta_compra} cco=${pks.cuenta_costo}`);
+
   // 'load' en vez de 'networkidle' — ver nota en loginContifico.
   await page.goto(PRODUCTO_NUEVO_URL, { waitUntil: 'load', timeout: 60000 });
   await page.waitForSelector('form[name="productoForm"]', { timeout: 15000 });
@@ -141,11 +226,12 @@ async function llenarFormProducto(page: Page, payload: ProductoPayload): Promise
   }
 
   // Categoría y unidad — hidden + quicksearch
-  if (payload.categoria_id) {
-    await setHiddenValue(page, 'categoria_id', payload.categoria_id);
+  // Usamos los django_pk resueltos del mapping table, NO los api_ids del payload
+  if (pks.categoria) {
+    await setHiddenValue(page, 'categoria_id', pks.categoria);
   }
-  if (payload.unidad_id && tipo === 'PRO') {
-    await setHiddenValue(page, 'unidad_id', payload.unidad_id);
+  if (pks.unidad && tipo === 'PRO') {
+    await setHiddenValue(page, 'unidad_id', pks.unidad);
   }
 
   if (payload.descripcion) {
@@ -192,15 +278,15 @@ async function llenarFormProducto(page: Page, payload: ProductoPayload): Promise
   await setCheckbox('para_compra', payload.para_compra === true);
   await setCheckbox('inventariable', payload.inventariable === true);
 
-  // Las cuentas se setean SOLO si su flag está activo
-  if (payload.para_venta && payload.cuenta_venta_id) {
-    await setHiddenValue(page, 'cuenta_venta_id', payload.cuenta_venta_id);
+  // Las cuentas se setean SOLO si su flag está activo, usando django_pk
+  if (payload.para_venta && pks.cuenta_venta) {
+    await setHiddenValue(page, 'cuenta_venta_id', pks.cuenta_venta);
   }
-  if (payload.para_compra && payload.cuenta_compra_id) {
-    await setHiddenValue(page, 'cuenta_compra_id', payload.cuenta_compra_id);
+  if (payload.para_compra && pks.cuenta_compra) {
+    await setHiddenValue(page, 'cuenta_compra_id', pks.cuenta_compra);
   }
-  if (payload.inventariable && payload.cuenta_costo_id) {
-    await setHiddenValue(page, 'cuenta_costo_id', payload.cuenta_costo_id);
+  if (payload.inventariable && pks.cuenta_costo) {
+    await setHiddenValue(page, 'cuenta_costo_id', pks.cuenta_costo);
   }
   if (payload.stock_minimo != null) {
     await fillIfVisible(page, 'input[name="minimo"]', String(payload.stock_minimo));
