@@ -495,7 +495,20 @@ async function main(): Promise<void> {
       try {
         console.log(`▶  [${row.codigo}] creando en Contifico...`);
         await llenarFormProducto(page, payload);
-        console.log(`✅ [${row.codigo}] creado OK`);
+
+        // Extraer contifico_id del URL de redirect post-submit.
+        // Después de GrabarProducto(), Contifico redirige a
+        // /sistema/inventario/producto/consultar/NNNNNN/ donde NNNNNN es el
+        // django_pk del producto recién creado. Lo guardamos para trazabilidad.
+        let contificoId: string | null = null;
+        const currentUrl = page.url();
+        const idMatch = currentUrl.match(/\/producto\/consultar\/(\d+)\//);
+        if (idMatch) {
+          contificoId = idMatch[1];
+          console.log(`✅ [${row.codigo}] creado OK, contifico_id=${contificoId}`);
+        } else {
+          console.log(`✅ [${row.codigo}] creado OK (sin id en URL: ${currentUrl.slice(-60)})`);
+        }
 
         await supabase
           .from(QUEUE_TABLE)
@@ -505,6 +518,7 @@ async function main(): Promise<void> {
             last_attempt_at: new Date().toISOString(),
             error_message: null,
             next_retry_at: null,
+            contifico_id: contificoId,
           })
           .eq('id', row.id);
         okCount++;
