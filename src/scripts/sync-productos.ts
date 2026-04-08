@@ -473,33 +473,49 @@ async function llenarFormProducto(page: Page, payload: ProductoPayload): Promise
   // ── Fórmulas (PRO y COP) ──
   // Contifico NO usa formsets estándar Django (no hay TOTAL_FORMS). La
   // serialización la hace GrabarProducto() en JS, que lee el DOM y arma el
-  // POST por name="...". Para soportar N filas/grupos/detalles sin depender
-  // de filas pre-renderizadas, inyectamos los inputs directo en el form como
-  // hidden con el naming correcto. Esto evita todo el baile de "clonar
-  // template y renumerar __prefix__".
+  // POST por name="...". Para soportar N filas/grupos/detalles reutilizamos
+  // los pre-renderizados del form y, para los adicionales, inyectamos inputs
+  // hidden con el naming correcto.
   //
-  // ⚠️ NOTA SOBRE ÍNDICES (potencial discrepancia memoria vs forma real):
-  // La memoria contifico_form_inventory.md dice "N incremental desde 0" para
-  // formula_{N}. El v1 viejo del script usaba formula_1 y SÍ funcionó (ver
-  // sync_queue TEST_E2E_PRO3=success). Implementamos según memoria (índices
-  // desde 0), pero ANTES limpiamos cualquier fila pre-renderizada formula_1-*
-  // con producto_detalle_id vacío para que no contamine el POST. Si el form
-  // tiene una fila formula_1 vacía y NO la limpiamos, GrabarProducto la
-  // incluiría con producto_detalle_id="" y Django rechazaría con error de
-  // validación. T7 va a confirmar el comportamiento real con productos reales.
+  // ═════════════════════════════════════════════════════════════════════════
+  // NAMING EMPÍRICO (verificado con Chrome MCP navegando el form real,
+  // ver memoria contifico_form_inventory.md — sección "Convención Django
+  // del formset", abril 2026). La doc anterior del Lote 3 tenía los índices
+  // y el sufijo iddetalle mal; esta sección refleja la verdad del DOM real.
+  // ═════════════════════════════════════════════════════════════════════════
   //
-  // Helper que inyecta un input hidden en el form productoForm con (name, value).
-  // Si ya existe un input con ese name (caso formula_1 pre-renderizado),
-  // actualiza su value en lugar de duplicar.
+  // PRO — fórmula plana:
+  //   formula_1-*  ← PRE-RENDERIZADO al cambiar tipo_producto a PRO
+  //   formula_2-*  ← click "Agregar Detalle" (a.btn_agregarFormula)
+  //   formula_3-*, ...
+  //   N empieza en 1, incremental, SIN sufijo iddetalle.
+  //
+  // COP — grupos × detalles:
+  //   tipo_formula_1-nombre="FORMULA"  ← PRE-LLENADO con default
+  //   tipo_formula_1-seleccion="NE"    ← PRE-LLENADO con default (NE es válido)
+  //   tipo_formula_1_iddetalle-*       ← PRIMER detalle del grupo 1 (sufijo LITERAL "iddetalle")
+  //   tipo_formula_1_1-*               ← segundo detalle del grupo 1
+  //   tipo_formula_1_2-*               ← tercer detalle del grupo 1
+  //
+  //   tipo_formula_2-nombre/seleccion  ← grupo #2 al click "Agregar Opción Variable"
+  //   tipo_formula_2_iddetalle-*       ← primer detalle del grupo 2 (también con "iddetalle")
+  //   tipo_formula_2_1-*               ← segundo detalle del grupo 2
+  //
+  // Modo receta_fija (HAMB001): un solo grupo, dejar FORMULA/NE como default.
+  // Modo opciones_variables (COMB001): overwrite nombre y seleccion del grupo 1
+  // con el nombre real y UN/VA. NE solo es válido en el modo receta_fija.
+  //
+  // Helper que inyecta/actualiza un input hidden en el form productoForm.
+  // Si ya existe input con ese name (caso pre-renderizado), actualiza value.
+  // Si no existe, crea un <input type="hidden"> nuevo appendido al form.
   async function injectHidden(name: string, value: string): Promise<void> {
     await page.evaluate(function (args: { n: string; v: string }) {
       const form = document.querySelector('form[name="productoForm"]') as HTMLFormElement | null;
       if (!form) return;
-      let el = form.querySelector('[name="' + args.n + '"]') as HTMLInputElement | HTMLSelectElement | null;
+      const el = form.querySelector('[name="' + args.n + '"]') as HTMLInputElement | HTMLSelectElement | null;
       if (el) {
-        // Actualizar valor del input/select existente
         if (el instanceof HTMLSelectElement) {
-          // Si no tiene la opción deseada, crearla
+          // Si el select no tiene la opción deseada, crearla antes de seleccionar
           let found = false;
           for (let i = 0; i < el.options.length; i++) {
             if (el.options[i].value === args.v) { found = true; break; }
@@ -517,7 +533,6 @@ async function llenarFormProducto(page: Page, payload: ProductoPayload): Promise
         }
         el.dispatchEvent(new Event('change', { bubbles: true }));
       } else {
-        // No existe → crear input hidden
         const inp = document.createElement('input');
         inp.type = 'hidden';
         inp.name = args.n;
@@ -527,144 +542,77 @@ async function llenarFormProducto(page: Page, payload: ProductoPayload): Promise
     }, { n: name, v: value });
   }
 
-  // PRO — fórmula plana sin anidación, N ilimitado desde índice 0.
-  // El form pre-renderiza formula_1-* como fila vacía, así que el primer
-  // item puede reusar esas si existen (se sobreescriben vía injectHidden).
-  // Para mantenerlo simple e idempotente, inyectamos TODO en índices
-  // formula_{0..N-1}-* como inputs hidden; no dependemos de la UI visible.
+  // Helper: llena los 4 inputs de una fila de fórmula/detalle con el prefix
+  // dado. Resuelve unidad (nombre textual primero, fallback a pk).
+  async function fillRow(prefix: string, item: { producto_id: string; cantidad: number; unidad_id?: string | null }, fallbackUnidadApi?: string | null): Promise<void> {
+    const productoPk = item.producto_id ? pks.formula_lookup['producto:' + item.producto_id] : null;
+    if (!productoPk) {
+      throw new Error(`${prefix}.producto_id no resuelto: ${item.producto_id}`);
+    }
+    const unidadApi = item.unidad_id ?? fallbackUnidadApi ?? null;
+    const unidadPk = unidadApi ? (pks.formula_lookup['unidad:' + unidadApi] ?? null) : pks.unidad;
+    const unidadNombre = unidadApi ? (pks.unidad_nombres[unidadApi] ?? '') : '';
+    await injectHidden(`${prefix}-producto_detalle_id`, productoPk);
+    await injectHidden(`${prefix}-cantidad`, String(item.cantidad));
+    // Los inputs de unidad del form leen nombre textual ("Gramos", "Unidad").
+    // hidden_unidad es el espejo sincronizado con el campo visible.
+    if (unidadNombre) {
+      await injectHidden(`${prefix}-unidad`, unidadNombre);
+      await injectHidden(`${prefix}-hidden_unidad`, unidadNombre);
+    } else if (unidadPk) {
+      // Fallback: si no hay nombre, mandamos el pk en ambos
+      await injectHidden(`${prefix}-unidad`, unidadPk);
+      await injectHidden(`${prefix}-hidden_unidad`, unidadPk);
+    }
+    console.log(`      • ${prefix}: producto=${productoPk} cant=${item.cantidad} unidad=${unidadNombre || unidadPk || '(vacío)'}`);
+  }
+
+  // ── PRO — fórmula plana 1-indexed ──
+  // formula_1 es la fila pre-renderizada al cambiar tipo_producto a PRO.
+  // Para N > 1, inyectamos formula_2, formula_3, ... como inputs hidden.
   if (tipoProducto === 'PRO' && payload.formula && payload.formula.length > 0) {
-    console.log(`   🧪 PRO: ${payload.formula.length} ingredientes`);
+    console.log(`   🧪 PRO: ${payload.formula.length} ingredientes (formula_1..${payload.formula.length})`);
     for (let i = 0; i < payload.formula.length; i++) {
       const item = payload.formula[i];
-      const productoPk = item.producto_id ? pks.formula_lookup['producto:' + item.producto_id] : null;
-      if (!productoPk) throw new Error(`formula[${i}].producto_id no resuelto: ${item.producto_id}`);
-      const unidadApi = item.unidad_id ?? payload.unidad_id ?? null;
-      const unidadPk = unidadApi ? pks.formula_lookup['unidad:' + unidadApi] : pks.unidad;
-      const unidadNombre = unidadApi ? (pks.unidad_nombres[unidadApi] ?? '') : '';
-      const base = `formula_${i}`;
-      await injectHidden(`${base}-producto_detalle_id`, productoPk);
-      await injectHidden(`${base}-cantidad`, String(item.cantidad));
-      // Los inputs de unidad que lee GrabarProducto() son el texto visible
-      // (ej: "Gramos") + el hidden espejo. Ambos deben llevar el NOMBRE, no el pk.
-      if (unidadNombre) {
-        await injectHidden(`${base}-unidad`, unidadNombre);
-        await injectHidden(`${base}-hidden_unidad`, unidadNombre);
-      } else if (unidadPk) {
-        // Fallback: si no conseguimos el nombre, al menos mandamos el pk
-        await injectHidden(`${base}-unidad`, unidadPk);
-        await injectHidden(`${base}-hidden_unidad`, unidadPk);
-      }
-      console.log(`      • formula_${i}: producto=${productoPk} cant=${item.cantidad} unidad=${unidadNombre || unidadPk || '(vacío)'}`);
+      const n = i + 1;  // 1-indexed
+      await fillRow(`formula_${n}`, item, payload.unidad_id);
     }
   }
 
-  // COP — dos modos distintos
+  // ── COP — dos modos con naming 1-indexed + sufijo literal "iddetalle" ──
   if (tipoProducto === 'COP' && payload.tipo_formula) {
     const tf = payload.tipo_formula;
 
     if (tf.modo === 'receta_fija') {
-      // Modo HAMB001: índice 0 es el contenedor REAL con NE.
-      console.log(`   🧪 COP receta_fija: ${tf.detalles.length} detalles en grupo 0`);
-      await injectHidden('tipo_formula_0-nombre', 'FORMULA');
-      await injectHidden('tipo_formula_0-seleccion', 'NE');
+      // HAMB001: un solo grupo, nombre/seleccion quedan en default (FORMULA/NE).
+      // No tocamos tipo_formula_1-nombre ni tipo_formula_1-seleccion.
+      console.log(`   🧪 COP receta_fija: ${tf.detalles.length} detalles en grupo 1 (FORMULA/NE default)`);
       for (let m = 0; m < tf.detalles.length; m++) {
         const det = tf.detalles[m];
-        const productoPk = det.producto_id ? pks.formula_lookup['producto:' + det.producto_id] : null;
-        if (!productoPk) {
-          throw new Error(`tipo_formula.detalles[${m}].producto_id no resuelto: ${det.producto_id}`);
-        }
-        const unidadApi = det.unidad_id ?? null;
-        const unidadPk = unidadApi ? pks.formula_lookup['unidad:' + unidadApi] : null;
-        const unidadNombre = unidadApi ? (pks.unidad_nombres[unidadApi] ?? '') : '';
-        const base = `tipo_formula_0_${m}`;
-        await injectHidden(`${base}-producto_detalle_id`, productoPk);
-        await injectHidden(`${base}-cantidad`, String(det.cantidad));
-        if (unidadNombre) {
-          await injectHidden(`${base}-unidad`, unidadNombre);
-          await injectHidden(`${base}-hidden_unidad`, unidadNombre);
-        } else if (unidadPk) {
-          await injectHidden(`${base}-unidad`, unidadPk);
-          await injectHidden(`${base}-hidden_unidad`, unidadPk);
-        }
-        console.log(`      • ${base}: producto=${productoPk} cant=${det.cantidad} unidad=${unidadNombre || unidadPk || '(vacío)'}`);
+        // Primer detalle usa sufijo literal "iddetalle"; siguientes usan m=1,2,...
+        const detSuffix = m === 0 ? 'iddetalle' : String(m);
+        await fillRow(`tipo_formula_1_${detSuffix}`, det, payload.unidad_id);
       }
     } else if (tf.modo === 'opciones_variables') {
-      // Modo COMB001: índice 0 es placeholder FORMULA/NE sin detalles,
-      // grupos reales en índices 1..K, cada uno con sus detalles 0..M.
+      // COMB001: múltiples grupos. El grupo 1 reutiliza tipo_formula_1 pero
+      // OVERWRITE nombre y seleccion (el default FORMULA/NE no aplica aquí —
+      // NE solo es válido en receta_fija).
       console.log(`   🧪 COP opciones_variables: ${tf.opciones.length} grupos`);
-      await injectHidden('tipo_formula_0-nombre', 'FORMULA');
-      await injectHidden('tipo_formula_0-seleccion', 'NE');
       for (let k = 0; k < tf.opciones.length; k++) {
         const grupo = tf.opciones[k];
-        const n = k + 1;  // grupos reales empiezan en 1
+        const n = k + 1;  // grupos 1-indexed
+        // Overwrite nombre y seleccion del grupo (el grupo 1 reemplaza los defaults).
         await injectHidden(`tipo_formula_${n}-nombre`, grupo.nombre);
         await injectHidden(`tipo_formula_${n}-seleccion`, grupo.seleccion);
         console.log(`      ▸ grupo ${n} "${grupo.nombre}" (${grupo.seleccion}) — ${grupo.detalles.length} detalles`);
         for (let m = 0; m < grupo.detalles.length; m++) {
           const det = grupo.detalles[m];
-          const productoPk = det.producto_id ? pks.formula_lookup['producto:' + det.producto_id] : null;
-          if (!productoPk) {
-            throw new Error(`tipo_formula.opciones[${k}].detalles[${m}].producto_id no resuelto: ${det.producto_id}`);
-          }
-          const unidadApi = det.unidad_id ?? null;
-          const unidadPk = unidadApi ? pks.formula_lookup['unidad:' + unidadApi] : null;
-          const unidadNombre = unidadApi ? (pks.unidad_nombres[unidadApi] ?? '') : '';
-          const base = `tipo_formula_${n}_${m}`;
-          await injectHidden(`${base}-producto_detalle_id`, productoPk);
-          await injectHidden(`${base}-cantidad`, String(det.cantidad));
-          if (unidadNombre) {
-            await injectHidden(`${base}-unidad`, unidadNombre);
-            await injectHidden(`${base}-hidden_unidad`, unidadNombre);
-          } else if (unidadPk) {
-            await injectHidden(`${base}-unidad`, unidadPk);
-            await injectHidden(`${base}-hidden_unidad`, unidadPk);
-          }
-          console.log(`         • ${base}: producto=${productoPk} cant=${det.cantidad} unidad=${unidadNombre || unidadPk || '(vacío)'}`);
+          // Primer detalle usa sufijo literal "iddetalle"; siguientes m=1,2,...
+          const detSuffix = m === 0 ? 'iddetalle' : String(m);
+          await fillRow(`tipo_formula_${n}_${detSuffix}`, det, payload.unidad_id);
         }
       }
     }
-  }
-
-  // ── Limpieza de filas pre-renderizadas vacías ──
-  // El template del form puede pre-renderizar filas (típicamente formula_1-* o
-  // tipo_formula_1-*) con producto_detalle_id vacío. Si las dejamos, Grabar
-  // Producto() las incluye en el POST y Django rechaza con "campo requerido".
-  // Eliminamos del DOM todos los inputs cuyo name matchee formula_N-*,
-  // tipo_formula_N-* o tipo_formula_N_M-* y cuyo producto_detalle_id esté
-  // vacío. Lo hacemos eliminando la FILA completa (la <tr> contenedora) para
-  // limpiar todos los campos asociados de una sola vez.
-  //
-  // Para PRO/COP los productos que llegan a este punto YA fueron inyectados
-  // arriba via injectHidden, por lo que sus inputs tienen value seteado. Las
-  // filas que quedan vacías son template residual que hay que matar.
-  if (tipoProducto === 'PRO' || tipoProducto === 'COP') {
-    await page.evaluate(function () {
-      const form = document.querySelector('form[name="productoForm"]');
-      if (!form) return;
-      // Buscar todos los inputs con name terminado en "-producto_detalle_id"
-      // que tengan value vacío y matcheen el patrón de fórmula
-      const all = form.querySelectorAll('input[name$="-producto_detalle_id"]');
-      const formulaRe = /^(formula_\d+|tipo_formula_\d+(?:_\d+)?)-producto_detalle_id$/;
-      for (let i = 0; i < all.length; i++) {
-        const el = all[i] as HTMLInputElement;
-        if (!formulaRe.test(el.name)) continue;
-        if ((el.value || '').trim() !== '') continue;
-        // Vacío + matchea pattern → fila template residual. Borrar la fila <tr>
-        // contenedora si existe; si no, borrar todos los hermanos con mismo prefix.
-        const prefix = el.name.replace('-producto_detalle_id', '');
-        const tr = el.closest('tr');
-        if (tr && tr.parentNode) {
-          tr.parentNode.removeChild(tr);
-        } else {
-          // Fallback: remover todos los inputs con ese prefix
-          const sibs = form.querySelectorAll('[name^="' + prefix + '-"]');
-          for (let j = 0; j < sibs.length; j++) {
-            const s = sibs[j];
-            if (s.parentNode) s.parentNode.removeChild(s);
-          }
-        }
-      }
-    });
   }
 
   // ── Defaults defensivos para campos integer hidden ──
