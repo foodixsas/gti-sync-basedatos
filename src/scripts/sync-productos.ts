@@ -735,8 +735,16 @@ async function main(): Promise<void> {
 
   // Lee la cola: solo create + pending (no in_progress, evita doble pick) +
   // attempts < max_attempts + next_retry_at vencido o nulo.
+  //
+  // Env var opcional ONLY_PRODUCTO_ID: si está seteada, filtra la cola a ese
+  // producto_id puntual. Útil para tests E2E aislados (headed local) sin
+  // procesar otros rows pending de la cola.
+  const onlyProductoId = process.env.ONLY_PRODUCTO_ID?.trim() || null;
+  if (onlyProductoId) {
+    console.log(`🎯 ONLY_PRODUCTO_ID=${onlyProductoId} (filtro aislado activo)`);
+  }
   const nowIso = new Date().toISOString();
-  const { data: queue, error: qErr } = await supabase
+  let queueQuery = supabase
     .from(QUEUE_TABLE)
     .select('id, producto_id, codigo, action, payload, status, attempts, max_attempts, contifico_id')
     .eq('status', 'pending')
@@ -744,6 +752,10 @@ async function main(): Promise<void> {
     .or(`next_retry_at.is.null,next_retry_at.lte.${nowIso}`)
     .order('created_at', { ascending: true })
     .limit(50);
+  if (onlyProductoId) {
+    queueQuery = queueQuery.eq('producto_id', onlyProductoId);
+  }
+  const { data: queue, error: qErr } = await queueQuery;
 
   if (qErr) {
     console.error('❌ Error consultando cola:', qErr.message);
@@ -768,8 +780,14 @@ async function main(): Promise<void> {
   let failCount = 0;
 
   try {
+    // HEADLESS=false permite correr headed local para debugging visual del
+    // form Contifico. En GitHub Actions (default) corre headless.
+    const runHeadless = process.env.HEADLESS !== 'false';
+    if (!runHeadless) {
+      console.log('👁️  HEADLESS=false → corriendo headed (debug visual)');
+    }
     browser = await chromium.launch({
-      headless: true,
+      headless: runHeadless,
       args: ['--no-sandbox', '--disable-setuid-sandbox'],
     });
     const context = await browser.newContext({
