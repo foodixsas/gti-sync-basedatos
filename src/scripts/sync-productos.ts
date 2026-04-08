@@ -91,6 +91,8 @@ interface ProductoPayload {
   tipo_formula?: FormulaCOP | null;
   // POS específicos — CSV de django_pk. null/'' = todos los POS
   pos_ids_csv?: string | null;
+  // Configuraciones extra (checkboxes inertes server-side)
+  maneja_control_stock?: boolean | null;
   // Flags NO enviados a Contifico — viven solo en Foodix. Si llegan, ignorar.
   aplica_delivery?: boolean | null;
   foto_url?: string | null;
@@ -416,6 +418,12 @@ async function llenarFormProducto(page: Page, payload: ProductoPayload): Promise
   // en el DOM (handlerComboTipo lo oculta), pero igual seteamos el estado.
   if (aplicaInventariable) {
     await setCheckbox('inventariable', inventariable);
+  }
+  // maneja_control_stock es un checkbox inerte server-side (no afecta
+  // visibilidad de otros campos). Solo aplicable cuando el checkbox existe
+  // en el DOM — en SER/COP puede estar oculto. Tolerante: si no existe, skip.
+  if (payload.maneja_control_stock != null) {
+    await setCheckbox('maneja_control_stock', payload.maneja_control_stock === true);
   }
 
   // ── Cuentas (hidden + autocomplete jQuery UI) ──
