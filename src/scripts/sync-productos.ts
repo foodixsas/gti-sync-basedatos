@@ -15,10 +15,6 @@ const QUEUE_TABLE = 'gfc_matriz_productos_sync_queue';
 const QUEUE_SCHEMA = 'gfc_finanzas';
 const PK_MAPPING_TABLE = 'gfc_matriz_productos_contifico_pk_mapping_productos';
 
-// Sentinela para "shelved" (PRO/COP no soportados v1): no se vuelve a pickear
-// hasta v2 cuando se actualice el código que los soporte.
-const SHELVED_NEXT_RETRY = '2099-12-31T00:00:00Z';
-
 // ─── Tipos ─────────────────────────────────────────────────────────────────
 interface SyncQueueRow {
   id: string;
@@ -34,44 +30,70 @@ interface SyncQueueRow {
 
 // Estructuras de fórmula — coinciden con los types del dashboard
 // (src/lib/types/productos.ts): FormulaPRO y FormulaCOP.
-interface FormulaItemPRO {
+//
+// IMPORTANTE: el payload del sync_queue usa los campos con nombres Foodix
+// (cuenta_ingresos_id / cuenta_costo_id / cuenta_inventario_id) y una unión
+// discriminada para tipo_formula (receta_fija | opciones_variables). El mapeo
+// a los nombres internos de Django se hace al llenar el form.
+interface FormulaItem {
   producto_id: string;        // api_id (alfanumérico) — se resuelve a django_pk
   cantidad: number;
   unidad_id?: string | null;  // api_id alfanumérico del catálogo unidades
 }
 
-interface OpcionVariableCOP {
-  nombre: string;
-  seleccion: 'UN' | 'VA' | 'NE';  // Sólo Uno / Varios o Ninguno / No Elegible
-  detalles: FormulaItemPRO[];
+type FormulaPRO = FormulaItem[];
+
+interface RecetaFijaCOP {
+  modo: 'receta_fija';
+  detalles: FormulaItem[];
 }
+
+interface OpcionesVariablesCOP {
+  modo: 'opciones_variables';
+  opciones: Array<{
+    nombre: string;
+    seleccion: 'UN' | 'VA';   // Sólo Uno / Varios o Ninguno
+    detalles: FormulaItem[];
+  }>;
+}
+
+type FormulaCOP = RecetaFijaCOP | OpcionesVariablesCOP;
 
 interface ProductoPayload {
   codigo: string;
-  nombre?: string;
-  descripcion?: string;
-  codigo_auxiliar?: string;
-  categoria_id?: string;
-  unidad_id?: string;
-  tipo_contifico?: 'PRO' | 'SER';
-  tipo_producto_contifico?: 'SIM' | 'PRO' | 'COP';
-  iva?: number;
-  pvp1?: number;
-  pvp2?: number;
-  pvp3?: number;
-  pvp_distribuidor?: number;
-  stock_minimo?: number;
-  lead_time?: number;
-  para_pos?: boolean;
-  para_venta?: boolean;
-  para_compra?: boolean;
-  inventariable?: boolean;
-  cuenta_venta_id?: string;
-  cuenta_compra_id?: string;
-  cuenta_costo_id?: string;
+  nombre?: string | null;
+  descripcion?: string | null;
+  codigo_auxiliar?: string | null;
+  categoria_id?: string | null;
+  unidad_id?: string | null;
+  tipo_contifico?: 'PRO' | 'SER' | null;
+  tipo_producto_contifico?: 'SIM' | 'PRO' | 'COP' | null;
+  iva?: number | null;
+  pvp1?: number | null;
+  pvp2?: number | null;
+  pvp3?: number | null;
+  pvp_distribuidor?: number | null;
+  stock_minimo?: number | null;
+  lead_time?: number | null;
+  para_pos?: boolean | null;
+  para_venta?: boolean | null;
+  para_compra?: boolean | null;
+  inventariable?: boolean | null;
+  // Cuentas — nombres Foodix. Mapeo a Django (se hace al llenar el form):
+  //   cuenta_ingresos_id   → input[name="cuenta_venta_id"]  (label "Ingresos")
+  //   cuenta_costo_id      → input[name="cuenta_compra_id"] (label "Costo")
+  //   cuenta_inventario_id → input[name="cuenta_costo_id"]  (label "Inventario")
+  cuenta_ingresos_id?: string | null;
+  cuenta_costo_id?: string | null;
+  cuenta_inventario_id?: string | null;
   // Fórmulas (según tipo_producto_contifico)
-  formula?: FormulaItemPRO[];              // PRO = array plano de ingredientes
-  tipo_formula?: OpcionVariableCOP[];      // COP = array de grupos con opciones
+  formula?: FormulaPRO | null;
+  tipo_formula?: FormulaCOP | null;
+  // POS específicos — CSV de django_pk. null/'' = todos los POS
+  pos_ids_csv?: string | null;
+  // Flags NO enviados a Contifico — viven solo en Foodix. Si llegan, ignorar.
+  aplica_delivery?: boolean | null;
+  foto_url?: string | null;
 }
 
 // ─── Supabase client ───────────────────────────────────────────────────────
@@ -94,31 +116,46 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
 interface ResolvedPks {
   categoria: string | null;
   unidad: string | null;
+  // Django-named: cuenta_venta = Ingresos, cuenta_compra = Costo, cuenta_costo = Inventario
   cuenta_venta: string | null;
   cuenta_compra: string | null;
   cuenta_costo: string | null;
   // Lookup por api_id (producto o unidad) para los items de fórmula
   // Clave: "entity_type:api_id" → django_pk string
   formula_lookup: Record<string, string>;
+  // Lookup de nombres de unidad por api_id — necesario porque los inputs
+  // visibles del form (formula_N-unidad, tipo_formula_N_M-unidad) toman el
+  // NOMBRE textual ("Gramos", "Unidad"), no el pk. Los leemos de
+  // contifico_raw.cat_unidades.
+  unidad_nombres: Record<string, string>;  // api_id → nombre
 }
 
 async function resolveDjangoPks(payload: ProductoPayload): Promise<ResolvedPks> {
-  const need: Array<{ entity_type: string; api_id: string; field?: keyof Omit<ResolvedPks, 'formula_lookup'> }> = [];
+  // Foodix → Django mapping de cuentas (los nombres Django son los del input
+  // HTML del form, y son CONTRA-intuitivos por historia del bug 18.M):
+  //   Foodix cuenta_ingresos_id   → Django cuenta_venta_id   (label "Ingresos")
+  //   Foodix cuenta_costo_id      → Django cuenta_compra_id  (label "Costo")
+  //   Foodix cuenta_inventario_id → Django cuenta_costo_id   (label "Inventario")
+  const need: Array<{ entity_type: string; api_id: string; field?: keyof Omit<ResolvedPks, 'formula_lookup' | 'unidad_nombres'> }> = [];
   if (payload.categoria_id) need.push({ entity_type: 'categoria', api_id: payload.categoria_id, field: 'categoria' });
   if (payload.unidad_id) need.push({ entity_type: 'unidad', api_id: payload.unidad_id, field: 'unidad' });
-  if (payload.cuenta_venta_id) need.push({ entity_type: 'cuenta_contable', api_id: payload.cuenta_venta_id, field: 'cuenta_venta' });
-  if (payload.cuenta_compra_id) need.push({ entity_type: 'cuenta_contable', api_id: payload.cuenta_compra_id, field: 'cuenta_compra' });
-  if (payload.cuenta_costo_id) need.push({ entity_type: 'cuenta_contable', api_id: payload.cuenta_costo_id, field: 'cuenta_costo' });
+  if (payload.cuenta_ingresos_id) need.push({ entity_type: 'cuenta_contable', api_id: payload.cuenta_ingresos_id, field: 'cuenta_venta' });
+  if (payload.cuenta_costo_id) need.push({ entity_type: 'cuenta_contable', api_id: payload.cuenta_costo_id, field: 'cuenta_compra' });
+  if (payload.cuenta_inventario_id) need.push({ entity_type: 'cuenta_contable', api_id: payload.cuenta_inventario_id, field: 'cuenta_costo' });
 
-  // Items de formula (PRO) — cada uno con producto_id y unidad_id
-  const formulaItems: FormulaItemPRO[] = [];
+  // Items de fórmula (PRO) — cada uno con producto_id y unidad_id
+  const formulaItems: FormulaItem[] = [];
   if (payload.tipo_producto_contifico === 'PRO' && payload.formula) {
     formulaItems.push(...payload.formula);
   }
-  // Items de fórmula COP — aplanar detalles de cada grupo
+  // Items de fórmula COP — union discriminada: aplanar detalles según modo
   if (payload.tipo_producto_contifico === 'COP' && payload.tipo_formula) {
-    for (const grupo of payload.tipo_formula) {
-      if (grupo.detalles) formulaItems.push(...grupo.detalles);
+    if (payload.tipo_formula.modo === 'receta_fija') {
+      formulaItems.push(...payload.tipo_formula.detalles);
+    } else if (payload.tipo_formula.modo === 'opciones_variables') {
+      for (const grupo of payload.tipo_formula.opciones) {
+        if (grupo.detalles) formulaItems.push(...grupo.detalles);
+      }
     }
   }
   for (const item of formulaItems) {
@@ -133,6 +170,7 @@ async function resolveDjangoPks(payload: ProductoPayload): Promise<ResolvedPks> 
     cuenta_compra: null,
     cuenta_costo: null,
     formula_lookup: {},
+    unidad_nombres: {},
   };
 
   if (need.length === 0) return result;
@@ -182,6 +220,29 @@ async function resolveDjangoPks(payload: ProductoPayload): Promise<ResolvedPks> 
     throw new Error(
       `PK mapping faltante para: ${missing.join(', ')}. Refrescar scraper scrape-pk-mapping.yml`
     );
+  }
+
+  // ── Lookup de nombres de unidad desde contifico_raw.cat_unidades ──
+  // Los inputs visibles del form (formula_N-unidad, tipo_formula_N_M-unidad)
+  // toman el nombre textual ("Gramos", "Unidad"), no el pk. Los leemos en
+  // una sola query para todos los api_ids de unidad que aparezcan.
+  const unidadApiIds = new Set<string>();
+  if (payload.unidad_id) unidadApiIds.add(payload.unidad_id);
+  for (const item of formulaItems) {
+    if (item.unidad_id) unidadApiIds.add(item.unidad_id);
+  }
+  if (unidadApiIds.size > 0) {
+    const { data: uData, error: uErr } = await supabase
+      .schema('contifico_raw')
+      .from('cat_unidades')
+      .select('id, nombre')
+      .in('id', Array.from(unidadApiIds));
+    if (uErr) {
+      throw new Error(`Error leyendo contifico_raw.cat_unidades: ${uErr.message}`);
+    }
+    for (const row of (uData ?? []) as Array<{ id: string; nombre: string }>) {
+      result.unidad_nombres[row.id] = row.nombre;
+    }
   }
 
   return result;
@@ -243,10 +304,42 @@ async function setHiddenValue(page: Page, name: string, value: string): Promise<
 }
 
 async function llenarFormProducto(page: Page, payload: ProductoPayload): Promise<void> {
-  // ── 0. Resolver IDs alfanuméricos → enteros Django ANTES de tocar el form
+  // ── 0. Auto-corrección de flags según reglas server-side de Contifico ──
+  // Estas validaciones NO se disparan en el cliente; si violas las reglas el
+  // submit falla con error genérico. Ver memoria contifico_form_inventory.md
+  // sección "Reglas de servidor".
+  const tipo = (payload.tipo_contifico ?? 'PRO') as 'PRO' | 'SER';
+  const tipoProducto = tipo === 'PRO' ? (payload.tipo_producto_contifico ?? 'SIM') : null;
+
+  // SER: no mandar tipo_producto, inventariable, minimo, factor*
+  // COP: no mandar inventariable, minimo, factor*
+  const aplicaInventariable = tipo === 'PRO' && tipoProducto !== 'COP';
+
+  // Empezamos del payload y corregimos en memoria
+  let paraVenta = payload.para_venta === true;
+  let paraCompra = payload.para_compra === true;
+  let inventariable = payload.inventariable === true;
+
+  // Regla: PRO (producción) requiere inventariable=true
+  if (tipoProducto === 'PRO' && aplicaInventariable && !inventariable) {
+    console.log('   ⚠️  auto-corregir: tipo_producto=PRO requiere inventariable=true');
+    inventariable = true;
+  }
+  // Regla: inventariable=true requiere para_compra=true
+  if (aplicaInventariable && inventariable && !paraCompra) {
+    console.log('   ⚠️  auto-corregir: inventariable=true requiere para_compra=true');
+    paraCompra = true;
+  }
+  // Si no aplica inventariable (SER o COP) → forzar false
+  if (!aplicaInventariable) {
+    inventariable = false;
+  }
+
+  // ── 0.b Resolver IDs alfanuméricos → enteros Django ANTES de tocar el form
   // Si esto falla, el row se marca como error sin haber abierto el form.
   const pks = await resolveDjangoPks(payload);
   console.log(`   🔑 PKs resueltas: cat=${pks.categoria} und=${pks.unidad} cv=${pks.cuenta_venta} cc=${pks.cuenta_compra} cco=${pks.cuenta_costo}`);
+  console.log(`   🏷️  tipo=${tipo} tipo_producto=${tipoProducto ?? '(n/a)'} flags: venta=${paraVenta} compra=${paraCompra} inv=${inventariable}`);
 
   // 'load' en vez de 'networkidle' — ver nota en loginContifico.
   await page.goto(PRODUCTO_NUEVO_URL, { waitUntil: 'load', timeout: 60000 });
@@ -263,10 +356,8 @@ async function llenarFormProducto(page: Page, payload: ProductoPayload): Promise
 
   // Tipo (Producto/Servicio) y subtipo. Disparamos change para que
   // handlerComboTipo() ajuste la visibilidad de las secciones del form.
-  const tipo = payload.tipo_contifico ?? 'PRO';
   await page.selectOption('select[name="tipo"]', tipo);
-  if (tipo === 'PRO') {
-    const tipoProducto = payload.tipo_producto_contifico ?? 'SIM';
+  if (tipo === 'PRO' && tipoProducto) {
     await page.selectOption('select[name="tipo_producto"]', tipoProducto);
   }
 
@@ -319,30 +410,60 @@ async function llenarFormProducto(page: Page, payload: ProductoPayload): Promise
     }, { n: name, on });
   }
 
-  await setCheckbox('para_venta', payload.para_venta === true);
-  await setCheckbox('para_compra', payload.para_compra === true);
-  await setCheckbox('inventariable', payload.inventariable === true);
+  await setCheckbox('para_venta', paraVenta);
+  await setCheckbox('para_compra', paraCompra);
+  // inventariable solo aplica en PRO no-COP. En SER/COP el checkbox no está
+  // en el DOM (handlerComboTipo lo oculta), pero igual seteamos el estado.
+  if (aplicaInventariable) {
+    await setCheckbox('inventariable', inventariable);
+  }
 
-  // Las cuentas se setean SOLO si su flag está activo, usando django_pk
-  if (payload.para_venta && pks.cuenta_venta) {
+  // ── Cuentas (hidden + autocomplete jQuery UI) ──
+  // Mapping Foodix → Django (ver memoria contifico_form_inventory.md 18.M):
+  //   cuenta_ingresos_id   → Django cuenta_venta_id   (label "Ingresos")
+  //   cuenta_costo_id      → Django cuenta_compra_id  (label "Costo")
+  //   cuenta_inventario_id → Django cuenta_costo_id   (label "Inventario")
+  // Las cuentas se setean SOLO si su flag está activo.
+  if (paraVenta && pks.cuenta_venta) {
     await setHiddenValue(page, 'cuenta_venta_id', pks.cuenta_venta);
   }
-  if (payload.para_compra && pks.cuenta_compra) {
+  if (paraCompra && pks.cuenta_compra) {
     await setHiddenValue(page, 'cuenta_compra_id', pks.cuenta_compra);
   }
-  if (payload.inventariable && pks.cuenta_costo) {
+  if (aplicaInventariable && inventariable && pks.cuenta_costo) {
     await setHiddenValue(page, 'cuenta_costo_id', pks.cuenta_costo);
   }
-  if (payload.stock_minimo != null) {
+  // Stock mínimo SOLO si aplica (no en SER ni COP)
+  if (aplicaInventariable && payload.stock_minimo != null) {
     await fillIfVisible(page, 'input[name="minimo"]', String(payload.stock_minimo));
   }
 
-  // ── Configuraciones ──
-  if (payload.para_pos) {
-    // para_pos checkbox también puede estar oculto si la sección POS no aplica
-    const posLoc = page.locator('input[name="para_pos"]').first();
-    if (await posLoc.isVisible({ timeout: 1000 }).catch(() => false)) {
-      await posLoc.check();
+  // ── Configuraciones → Sección POS ──
+  // Flujo (ver memoria contifico_form_inventory.md sección "Cascada de para_pos"
+  // y 18.R "POS específicos: pos_input es CSV de pks"):
+  //  - para_pos=false → no tocar nada de POS
+  //  - para_pos=true + pos_ids_csv vacío/null → todos_pos queda en true (default)
+  //  - para_pos=true + pos_ids_csv con valores → desmarcar todos_pos e inyectar
+  //    el CSV directamente en input[name="pos_input"] (es un text input con
+  //    CSV de django_pk, NO un autocomplete con chips).
+  const paraPos = payload.para_pos === true;
+  const posCsvTrim = (payload.pos_ids_csv ?? '').trim();
+  if (paraPos) {
+    await setCheckbox('para_pos', true);
+    if (posCsvTrim !== '') {
+      // Desmarcar todos_pos para habilitar el selector específico,
+      // luego inyectar el CSV en el hidden input pos_input.
+      await setCheckbox('todos_pos', false);
+      await page.evaluate(function (csv: string) {
+        const inp = document.querySelector('input[name="pos_input"]') as HTMLInputElement | null;
+        if (inp) {
+          inp.value = csv;
+          inp.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+      }, posCsvTrim);
+      console.log(`   🏪 POS específicos: ${posCsvTrim}`);
+    } else {
+      console.log('   🏪 POS: todos (todos_pos=true)');
     }
   }
   if (payload.lead_time != null) {
@@ -350,95 +471,200 @@ async function llenarFormProducto(page: Page, payload: ProductoPayload): Promise
   }
 
   // ── Fórmulas (PRO y COP) ──
-  // v1 mínima: solo soporta 1 ingrediente (PRO) o 1 grupo con 1 opción (COP),
-  // usando las filas pre-renderizadas formula_1-* y tipo_formula_1_*. Si el
-  // payload trae más, se ignoran silenciosamente (se loggea warning).
-  if (payload.tipo_producto_contifico === 'PRO' && payload.formula && payload.formula.length > 0) {
-    if (payload.formula.length > 1) {
-      console.log(`   ⚠️  PRO con ${payload.formula.length} ingredientes — v1 solo usa el primero`);
-    }
-    const item = payload.formula[0];
-    const productoPk = item.producto_id ? pks.formula_lookup['producto:' + item.producto_id] : null;
-    const unidadPk = item.unidad_id ? pks.formula_lookup['unidad:' + item.unidad_id] : pks.unidad;
-    if (!productoPk) throw new Error(`formula[0].producto_id no resuelto: ${item.producto_id}`);
-    await setHiddenValue(page, 'formula_1-producto_detalle_id', productoPk);
-    await page.evaluate(function (args: { cantidad: string; unidadPk: string | null }) {
-      const form = document.querySelector('form[name="productoForm"]');
+  // Contifico NO usa formsets estándar Django (no hay TOTAL_FORMS). La
+  // serialización la hace GrabarProducto() en JS, que lee el DOM y arma el
+  // POST por name="...". Para soportar N filas/grupos/detalles sin depender
+  // de filas pre-renderizadas, inyectamos los inputs directo en el form como
+  // hidden con el naming correcto. Esto evita todo el baile de "clonar
+  // template y renumerar __prefix__".
+  //
+  // ⚠️ NOTA SOBRE ÍNDICES (potencial discrepancia memoria vs forma real):
+  // La memoria contifico_form_inventory.md dice "N incremental desde 0" para
+  // formula_{N}. El v1 viejo del script usaba formula_1 y SÍ funcionó (ver
+  // sync_queue TEST_E2E_PRO3=success). Implementamos según memoria (índices
+  // desde 0), pero ANTES limpiamos cualquier fila pre-renderizada formula_1-*
+  // con producto_detalle_id vacío para que no contamine el POST. Si el form
+  // tiene una fila formula_1 vacía y NO la limpiamos, GrabarProducto la
+  // incluiría con producto_detalle_id="" y Django rechazaría con error de
+  // validación. T7 va a confirmar el comportamiento real con productos reales.
+  //
+  // Helper que inyecta un input hidden en el form productoForm con (name, value).
+  // Si ya existe un input con ese name (caso formula_1 pre-renderizado),
+  // actualiza su value en lugar de duplicar.
+  async function injectHidden(name: string, value: string): Promise<void> {
+    await page.evaluate(function (args: { n: string; v: string }) {
+      const form = document.querySelector('form[name="productoForm"]') as HTMLFormElement | null;
       if (!form) return;
-      const cant = form.querySelector('input[name="formula_1-cantidad"]') as HTMLInputElement | null;
-      if (cant) {
-        cant.value = args.cantidad;
-        cant.dispatchEvent(new Event('change', { bubbles: true }));
-      }
-      // El select formula_1-unidad puede estar vacío (se popula via ajax al
-      // elegir producto). Inyectamos la opción + la seleccionamos + también
-      // setear el hidden backup por si Django lo usa.
-      if (args.unidadPk) {
-        const sel = form.querySelector('select[name="formula_1-unidad"]') as HTMLSelectElement | null;
-        if (sel) {
-          const opt = document.createElement('option');
-          opt.value = args.unidadPk;
-          opt.text = 'unidad-' + args.unidadPk;
-          opt.selected = true;
-          sel.appendChild(opt);
-          sel.value = args.unidadPk;
-          sel.dispatchEvent(new Event('change', { bubbles: true }));
+      let el = form.querySelector('[name="' + args.n + '"]') as HTMLInputElement | HTMLSelectElement | null;
+      if (el) {
+        // Actualizar valor del input/select existente
+        if (el instanceof HTMLSelectElement) {
+          // Si no tiene la opción deseada, crearla
+          let found = false;
+          for (let i = 0; i < el.options.length; i++) {
+            if (el.options[i].value === args.v) { found = true; break; }
+          }
+          if (!found) {
+            const opt = document.createElement('option');
+            opt.value = args.v;
+            opt.text = args.v;
+            opt.selected = true;
+            el.appendChild(opt);
+          }
+          el.value = args.v;
+        } else {
+          (el as HTMLInputElement).value = args.v;
         }
-        const hid = form.querySelector('input[name="formula_1-hidden_unidad"]') as HTMLInputElement | null;
-        if (hid) hid.value = args.unidadPk;
+        el.dispatchEvent(new Event('change', { bubbles: true }));
+      } else {
+        // No existe → crear input hidden
+        const inp = document.createElement('input');
+        inp.type = 'hidden';
+        inp.name = args.n;
+        inp.value = args.v;
+        form.appendChild(inp);
       }
-    }, { cantidad: String(item.cantidad), unidadPk: unidadPk });
-    console.log(`   🧪 PRO formula_1: producto=${productoPk} cantidad=${item.cantidad} unidad=${unidadPk}`);
+    }, { n: name, v: value });
   }
 
-  if (payload.tipo_producto_contifico === 'COP' && payload.tipo_formula && payload.tipo_formula.length > 0) {
-    if (payload.tipo_formula.length > 1) {
-      console.log(`   ⚠️  COP con ${payload.tipo_formula.length} grupos — v1 solo usa el primero`);
+  // PRO — fórmula plana sin anidación, N ilimitado desde índice 0.
+  // El form pre-renderiza formula_1-* como fila vacía, así que el primer
+  // item puede reusar esas si existen (se sobreescriben vía injectHidden).
+  // Para mantenerlo simple e idempotente, inyectamos TODO en índices
+  // formula_{0..N-1}-* como inputs hidden; no dependemos de la UI visible.
+  if (tipoProducto === 'PRO' && payload.formula && payload.formula.length > 0) {
+    console.log(`   🧪 PRO: ${payload.formula.length} ingredientes`);
+    for (let i = 0; i < payload.formula.length; i++) {
+      const item = payload.formula[i];
+      const productoPk = item.producto_id ? pks.formula_lookup['producto:' + item.producto_id] : null;
+      if (!productoPk) throw new Error(`formula[${i}].producto_id no resuelto: ${item.producto_id}`);
+      const unidadApi = item.unidad_id ?? payload.unidad_id ?? null;
+      const unidadPk = unidadApi ? pks.formula_lookup['unidad:' + unidadApi] : pks.unidad;
+      const unidadNombre = unidadApi ? (pks.unidad_nombres[unidadApi] ?? '') : '';
+      const base = `formula_${i}`;
+      await injectHidden(`${base}-producto_detalle_id`, productoPk);
+      await injectHidden(`${base}-cantidad`, String(item.cantidad));
+      // Los inputs de unidad que lee GrabarProducto() son el texto visible
+      // (ej: "Gramos") + el hidden espejo. Ambos deben llevar el NOMBRE, no el pk.
+      if (unidadNombre) {
+        await injectHidden(`${base}-unidad`, unidadNombre);
+        await injectHidden(`${base}-hidden_unidad`, unidadNombre);
+      } else if (unidadPk) {
+        // Fallback: si no conseguimos el nombre, al menos mandamos el pk
+        await injectHidden(`${base}-unidad`, unidadPk);
+        await injectHidden(`${base}-hidden_unidad`, unidadPk);
+      }
+      console.log(`      • formula_${i}: producto=${productoPk} cant=${item.cantidad} unidad=${unidadNombre || unidadPk || '(vacío)'}`);
     }
-    const grupo = payload.tipo_formula[0];
-    if (grupo.detalles && grupo.detalles.length > 1) {
-      console.log(`   ⚠️  COP grupo con ${grupo.detalles.length} detalles — v1 solo usa el primero`);
+  }
+
+  // COP — dos modos distintos
+  if (tipoProducto === 'COP' && payload.tipo_formula) {
+    const tf = payload.tipo_formula;
+
+    if (tf.modo === 'receta_fija') {
+      // Modo HAMB001: índice 0 es el contenedor REAL con NE.
+      console.log(`   🧪 COP receta_fija: ${tf.detalles.length} detalles en grupo 0`);
+      await injectHidden('tipo_formula_0-nombre', 'FORMULA');
+      await injectHidden('tipo_formula_0-seleccion', 'NE');
+      for (let m = 0; m < tf.detalles.length; m++) {
+        const det = tf.detalles[m];
+        const productoPk = det.producto_id ? pks.formula_lookup['producto:' + det.producto_id] : null;
+        if (!productoPk) {
+          throw new Error(`tipo_formula.detalles[${m}].producto_id no resuelto: ${det.producto_id}`);
+        }
+        const unidadApi = det.unidad_id ?? null;
+        const unidadPk = unidadApi ? pks.formula_lookup['unidad:' + unidadApi] : null;
+        const unidadNombre = unidadApi ? (pks.unidad_nombres[unidadApi] ?? '') : '';
+        const base = `tipo_formula_0_${m}`;
+        await injectHidden(`${base}-producto_detalle_id`, productoPk);
+        await injectHidden(`${base}-cantidad`, String(det.cantidad));
+        if (unidadNombre) {
+          await injectHidden(`${base}-unidad`, unidadNombre);
+          await injectHidden(`${base}-hidden_unidad`, unidadNombre);
+        } else if (unidadPk) {
+          await injectHidden(`${base}-unidad`, unidadPk);
+          await injectHidden(`${base}-hidden_unidad`, unidadPk);
+        }
+        console.log(`      • ${base}: producto=${productoPk} cant=${det.cantidad} unidad=${unidadNombre || unidadPk || '(vacío)'}`);
+      }
+    } else if (tf.modo === 'opciones_variables') {
+      // Modo COMB001: índice 0 es placeholder FORMULA/NE sin detalles,
+      // grupos reales en índices 1..K, cada uno con sus detalles 0..M.
+      console.log(`   🧪 COP opciones_variables: ${tf.opciones.length} grupos`);
+      await injectHidden('tipo_formula_0-nombre', 'FORMULA');
+      await injectHidden('tipo_formula_0-seleccion', 'NE');
+      for (let k = 0; k < tf.opciones.length; k++) {
+        const grupo = tf.opciones[k];
+        const n = k + 1;  // grupos reales empiezan en 1
+        await injectHidden(`tipo_formula_${n}-nombre`, grupo.nombre);
+        await injectHidden(`tipo_formula_${n}-seleccion`, grupo.seleccion);
+        console.log(`      ▸ grupo ${n} "${grupo.nombre}" (${grupo.seleccion}) — ${grupo.detalles.length} detalles`);
+        for (let m = 0; m < grupo.detalles.length; m++) {
+          const det = grupo.detalles[m];
+          const productoPk = det.producto_id ? pks.formula_lookup['producto:' + det.producto_id] : null;
+          if (!productoPk) {
+            throw new Error(`tipo_formula.opciones[${k}].detalles[${m}].producto_id no resuelto: ${det.producto_id}`);
+          }
+          const unidadApi = det.unidad_id ?? null;
+          const unidadPk = unidadApi ? pks.formula_lookup['unidad:' + unidadApi] : null;
+          const unidadNombre = unidadApi ? (pks.unidad_nombres[unidadApi] ?? '') : '';
+          const base = `tipo_formula_${n}_${m}`;
+          await injectHidden(`${base}-producto_detalle_id`, productoPk);
+          await injectHidden(`${base}-cantidad`, String(det.cantidad));
+          if (unidadNombre) {
+            await injectHidden(`${base}-unidad`, unidadNombre);
+            await injectHidden(`${base}-hidden_unidad`, unidadNombre);
+          } else if (unidadPk) {
+            await injectHidden(`${base}-unidad`, unidadPk);
+            await injectHidden(`${base}-hidden_unidad`, unidadPk);
+          }
+          console.log(`         • ${base}: producto=${productoPk} cant=${det.cantidad} unidad=${unidadNombre || unidadPk || '(vacío)'}`);
+        }
+      }
     }
-    // Fill el grupo 1
-    await page.evaluate(function (args: { nombre: string; seleccion: string }) {
+  }
+
+  // ── Limpieza de filas pre-renderizadas vacías ──
+  // El template del form puede pre-renderizar filas (típicamente formula_1-* o
+  // tipo_formula_1-*) con producto_detalle_id vacío. Si las dejamos, Grabar
+  // Producto() las incluye en el POST y Django rechaza con "campo requerido".
+  // Eliminamos del DOM todos los inputs cuyo name matchee formula_N-*,
+  // tipo_formula_N-* o tipo_formula_N_M-* y cuyo producto_detalle_id esté
+  // vacío. Lo hacemos eliminando la FILA completa (la <tr> contenedora) para
+  // limpiar todos los campos asociados de una sola vez.
+  //
+  // Para PRO/COP los productos que llegan a este punto YA fueron inyectados
+  // arriba via injectHidden, por lo que sus inputs tienen value seteado. Las
+  // filas que quedan vacías son template residual que hay que matar.
+  if (tipoProducto === 'PRO' || tipoProducto === 'COP') {
+    await page.evaluate(function () {
       const form = document.querySelector('form[name="productoForm"]');
       if (!form) return;
-      const n = form.querySelector('input[name="tipo_formula_1-nombre"]') as HTMLInputElement | null;
-      if (n) { n.value = args.nombre; n.dispatchEvent(new Event('change', { bubbles: true })); }
-      const s = form.querySelector('select[name="tipo_formula_1-seleccion"]') as HTMLSelectElement | null;
-      if (s) { s.value = args.seleccion; s.dispatchEvent(new Event('change', { bubbles: true })); }
-    }, { nombre: grupo.nombre, seleccion: grupo.seleccion });
-
-    // Fill el detalle 1 del grupo 1
-    if (grupo.detalles && grupo.detalles.length > 0) {
-      const det = grupo.detalles[0];
-      const productoPk = det.producto_id ? pks.formula_lookup['producto:' + det.producto_id] : null;
-      const unidadPk = det.unidad_id ? pks.formula_lookup['unidad:' + det.unidad_id] : pks.unidad;
-      if (!productoPk) throw new Error(`tipo_formula[0].detalles[0].producto_id no resuelto: ${det.producto_id}`);
-      // El naming real del form pre-renderizado es tipo_formula_1_iddetalle-*
-      await setHiddenValue(page, 'tipo_formula_1_iddetalle-producto_detalle_id', productoPk);
-      await page.evaluate(function (args: { cantidad: string; unidadPk: string | null }) {
-        const form = document.querySelector('form[name="productoForm"]');
-        if (!form) return;
-        const cant = form.querySelector('input[name="tipo_formula_1_iddetalle-cantidad"]') as HTMLInputElement | null;
-        if (cant) { cant.value = args.cantidad; cant.dispatchEvent(new Event('change', { bubbles: true })); }
-        if (args.unidadPk) {
-          const sel = form.querySelector('select[name="tipo_formula_1_iddetalle-unidad"]') as HTMLSelectElement | null;
-          if (sel) {
-            const opt = document.createElement('option');
-            opt.value = args.unidadPk;
-            opt.text = 'unidad-' + args.unidadPk;
-            opt.selected = true;
-            sel.appendChild(opt);
-            sel.value = args.unidadPk;
-            sel.dispatchEvent(new Event('change', { bubbles: true }));
+      // Buscar todos los inputs con name terminado en "-producto_detalle_id"
+      // que tengan value vacío y matcheen el patrón de fórmula
+      const all = form.querySelectorAll('input[name$="-producto_detalle_id"]');
+      const formulaRe = /^(formula_\d+|tipo_formula_\d+(?:_\d+)?)-producto_detalle_id$/;
+      for (let i = 0; i < all.length; i++) {
+        const el = all[i] as HTMLInputElement;
+        if (!formulaRe.test(el.name)) continue;
+        if ((el.value || '').trim() !== '') continue;
+        // Vacío + matchea pattern → fila template residual. Borrar la fila <tr>
+        // contenedora si existe; si no, borrar todos los hermanos con mismo prefix.
+        const prefix = el.name.replace('-producto_detalle_id', '');
+        const tr = el.closest('tr');
+        if (tr && tr.parentNode) {
+          tr.parentNode.removeChild(tr);
+        } else {
+          // Fallback: remover todos los inputs con ese prefix
+          const sibs = form.querySelectorAll('[name^="' + prefix + '-"]');
+          for (let j = 0; j < sibs.length; j++) {
+            const s = sibs[j];
+            if (s.parentNode) s.parentNode.removeChild(s);
           }
-          const hid = form.querySelector('input[name="tipo_formula_1_iddetalle-hidden_unidad"]') as HTMLInputElement | null;
-          if (hid) hid.value = args.unidadPk;
         }
-      }, { cantidad: String(det.cantidad), unidadPk: unidadPk });
-      console.log(`   🧪 COP grupo1="${grupo.nombre}" (${grupo.seleccion}) detalle1: producto=${productoPk} cantidad=${det.cantidad} unidad=${unidadPk}`);
-    }
+      }
+    });
   }
 
   // ── Defaults defensivos para campos integer hidden ──
@@ -592,7 +818,6 @@ async function main(): Promise<void> {
   let browser: Browser | null = null;
   let okCount = 0;
   let failCount = 0;
-  let skipCount = 0;
 
   try {
     browser = await chromium.launch({
@@ -608,9 +833,11 @@ async function main(): Promise<void> {
 
     for (const row of procesables) {
       const payload = row.payload;
-      // v2: SIM, PRO y COP soportados. La lógica de fórmulas está dentro de
-      // llenarFormProducto (v1 mínimo: 1 ingrediente para PRO, 1 grupo con 1
-      // detalle para COP).
+      // SIM, PRO, COP y SER soportados. Las fórmulas (PRO ilimitada, COP en
+      // modo receta_fija o opciones_variables), las cuentas contables con
+      // mapping Foodix→Django, los POS específicos vía CSV y la auto-corrección
+      // de flags según reglas server de Contifico se manejan dentro de
+      // llenarFormProducto.
 
       // Marcamos in_progress para evitar doble pick si dos runs corren paralelos
       await supabase
@@ -686,7 +913,6 @@ async function main(): Promise<void> {
   console.log(`📊 RESUMEN`);
   console.log(`   Creados OK: ${okCount}`);
   console.log(`   Fallos: ${failCount}`);
-  console.log(`   Skip (PRO/COP): ${skipCount}`);
   console.log(`════════════════════════════════════════\n`);
 }
 
