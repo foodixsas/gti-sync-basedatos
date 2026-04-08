@@ -579,7 +579,17 @@ async function llenarFormProducto(page: Page, payload: ProductoPayload): Promise
     }
   }
 
-  // ── COP — dos modos con naming 1-indexed + sufijo literal "iddetalle" ──
+  // ── COP — dos modos, detalles 0-indexed SIN sufijo iddetalle ──
+  //
+  // CORRECCIÓN EMPÍRICA (vs COMB001 real, verificado con Chrome MCP):
+  // El sufijo literal `_iddetalle` es un template esqueleto del Django form
+  // que el backend SIEMPRE ignora al persistir, esté vacío o lleno. Los
+  // detalles reales se persisten con sufijos numéricos 0-indexed:
+  // `_0, _1, _2, ...`. La versión anterior usaba `m === 0 ? 'iddetalle' : m`
+  // que hacía que el primer detalle de cada grupo se perdiera.
+  //
+  // Grupos 1-indexed: `tipo_formula_0` es leftover/template del form, los
+  // grupos reales empiezan en `tipo_formula_1`, `tipo_formula_2`, ...
   if (tipoProducto === 'COP' && payload.tipo_formula) {
     const tf = payload.tipo_formula;
 
@@ -589,9 +599,7 @@ async function llenarFormProducto(page: Page, payload: ProductoPayload): Promise
       console.log(`   🧪 COP receta_fija: ${tf.detalles.length} detalles en grupo 1 (FORMULA/NE default)`);
       for (let m = 0; m < tf.detalles.length; m++) {
         const det = tf.detalles[m];
-        // Primer detalle usa sufijo literal "iddetalle"; siguientes usan m=1,2,...
-        const detSuffix = m === 0 ? 'iddetalle' : String(m);
-        await fillRow(`tipo_formula_1_${detSuffix}`, det, payload.unidad_id);
+        await fillRow(`tipo_formula_1_${m}`, det, payload.unidad_id);
       }
     } else if (tf.modo === 'opciones_variables') {
       // COMB001: múltiples grupos. El grupo 1 reutiliza tipo_formula_1 pero
@@ -607,9 +615,7 @@ async function llenarFormProducto(page: Page, payload: ProductoPayload): Promise
         console.log(`      ▸ grupo ${n} "${grupo.nombre}" (${grupo.seleccion}) — ${grupo.detalles.length} detalles`);
         for (let m = 0; m < grupo.detalles.length; m++) {
           const det = grupo.detalles[m];
-          // Primer detalle usa sufijo literal "iddetalle"; siguientes m=1,2,...
-          const detSuffix = m === 0 ? 'iddetalle' : String(m);
-          await fillRow(`tipo_formula_${n}_${detSuffix}`, det, payload.unidad_id);
+          await fillRow(`tipo_formula_${n}_${m}`, det, payload.unidad_id);
         }
       }
     }
