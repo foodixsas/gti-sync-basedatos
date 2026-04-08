@@ -579,37 +579,62 @@ async function llenarFormProducto(page: Page, payload: ProductoPayload): Promise
     }
   }
 
-  // ── COP — dos modos, detalles 0-indexed SIN sufijo iddetalle ──
+  // ── COP — dos modos con índices distintos (verificado empíricamente) ──
   //
-  // CORRECCIÓN EMPÍRICA (vs COMB001 real, verificado con Chrome MCP):
-  // El sufijo literal `_iddetalle` es un template esqueleto del Django form
-  // que el backend SIEMPRE ignora al persistir, esté vacío o lleno. Los
-  // detalles reales se persisten con sufijos numéricos 0-indexed:
-  // `_0, _1, _2, ...`. La versión anterior usaba `m === 0 ? 'iddetalle' : m`
-  // que hacía que el primer detalle de cada grupo se perdiera.
+  // Truth table tras inspeccionar HAMB001 (receta_fija) y COMB001 (opciones
+  // variables) vía Chrome MCP:
   //
-  // Grupos 1-indexed: `tipo_formula_0` es leftover/template del form, los
-  // grupos reales empiezan en `tipo_formula_1`, `tipo_formula_2`, ...
+  //   receta_fija (HAMB001):
+  //     tipo_formula_0-nombre = "FORMULA"  ← grupo REAL, default del form
+  //     tipo_formula_0-seleccion = "NE"    ← default del form (válido en este modo)
+  //     tipo_formula_0_0-* = primer detalle
+  //     tipo_formula_0_1-* = segundo detalle
+  //     ... (NO hay tipo_formula_1, _2, ... en receta_fija)
+  //
+  //   opciones_variables (COMB001):
+  //     tipo_formula_0-nombre = "FORMULA"  ← leftover/template del form (vacío)
+  //     tipo_formula_0-seleccion = "NE"    ← template empty
+  //     tipo_formula_0_iddetalle-* = ""    ← template empty
+  //     tipo_formula_1-nombre = "ACOMPAÑANTE"  ← grupo REAL #1 (1-indexed)
+  //     tipo_formula_1-seleccion = "VA"
+  //     tipo_formula_1_0-* = primer detalle
+  //     tipo_formula_1_1-* = segundo detalle
+  //     tipo_formula_2-nombre = "BEBIDA"   ← grupo REAL #2
+  //     tipo_formula_2_0-* = primer detalle
+  //     tipo_formula_2_11-* = detalle #12
+  //
+  // Reglas derivadas:
+  //   1. `_iddetalle` es template esqueleto del Django form y SIEMPRE lo ignora
+  //      al persistir, esté vacío o lleno. No lo usamos como destino de datos.
+  //   2. Detalles de cualquier grupo: `tipo_formula_{N}_{M}-*` con M desde 0.
+  //   3. receta_fija: un solo grupo en índice 0 con defaults FORMULA/NE (que
+  //      son válidos en este modo), detalles en `tipo_formula_0_{M}`.
+  //   4. opciones_variables: `tipo_formula_0` es leftover empty, grupos reales
+  //      empiezan en `tipo_formula_1`, `tipo_formula_2`, ... con overwrite del
+  //      nombre y seleccion (que DEBE ser UN o VA, no NE).
   if (tipoProducto === 'COP' && payload.tipo_formula) {
     const tf = payload.tipo_formula;
 
     if (tf.modo === 'receta_fija') {
-      // HAMB001: un solo grupo, nombre/seleccion quedan en default (FORMULA/NE).
-      // No tocamos tipo_formula_1-nombre ni tipo_formula_1-seleccion.
-      console.log(`   🧪 COP receta_fija: ${tf.detalles.length} detalles en grupo 1 (FORMULA/NE default)`);
+      // HAMB001: un solo grupo en tipo_formula_0, nombre/seleccion quedan en
+      // default del form (FORMULA/NE) que es VÁLIDO en este modo.
+      // Detalles en tipo_formula_0_0, tipo_formula_0_1, ... (0-indexed).
+      console.log(`   🧪 COP receta_fija: ${tf.detalles.length} detalles en grupo 0 (FORMULA/NE default)`);
       for (let m = 0; m < tf.detalles.length; m++) {
         const det = tf.detalles[m];
-        await fillRow(`tipo_formula_1_${m}`, det, payload.unidad_id);
+        await fillRow(`tipo_formula_0_${m}`, det, payload.unidad_id);
       }
     } else if (tf.modo === 'opciones_variables') {
-      // COMB001: múltiples grupos. El grupo 1 reutiliza tipo_formula_1 pero
-      // OVERWRITE nombre y seleccion (el default FORMULA/NE no aplica aquí —
-      // NE solo es válido en receta_fija).
-      console.log(`   🧪 COP opciones_variables: ${tf.opciones.length} grupos`);
+      // COMB001: múltiples grupos reales empezando en tipo_formula_1. El
+      // slot tipo_formula_0 queda como leftover empty del form (FORMULA/NE
+      // default, sin detalles). Los grupos reales necesitan overwrite del
+      // nombre y seleccion (UN o VA — NE solo es válido en receta_fija).
+      // Detalles de cada grupo en tipo_formula_{N}_{M} con M 0-indexed.
+      console.log(`   🧪 COP opciones_variables: ${tf.opciones.length} grupos (desde tipo_formula_1)`);
       for (let k = 0; k < tf.opciones.length; k++) {
         const grupo = tf.opciones[k];
-        const n = k + 1;  // grupos 1-indexed
-        // Overwrite nombre y seleccion del grupo (el grupo 1 reemplaza los defaults).
+        const n = k + 1;  // grupos reales 1-indexed (tipo_formula_0 es leftover)
+        // Overwrite nombre y seleccion del grupo real.
         await injectHidden(`tipo_formula_${n}-nombre`, grupo.nombre);
         await injectHidden(`tipo_formula_${n}-seleccion`, grupo.seleccion);
         console.log(`      ▸ grupo ${n} "${grupo.nombre}" (${grupo.seleccion}) — ${grupo.detalles.length} detalles`);
