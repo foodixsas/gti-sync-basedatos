@@ -1,0 +1,71 @@
+name: PedidosYa daily backfill
+
+on:
+  schedule:
+    - cron: '0 11 * * *'   # 6 AM Ecuador (UTC-5) = 11 AM UTC
+  workflow_dispatch:
+    inputs:
+      from:
+        description: 'Fecha desde (YYYY-MM-DD). Default: hace 20 días'
+        required: false
+        default: ''
+      to:
+        description: 'Fecha hasta (YYYY-MM-DD). Default: hoy'
+        required: false
+        default: ''
+      phase:
+        description: 'Fase: all | payouts | invoices | orders | link'
+        required: false
+        default: 'invoices'
+
+jobs:
+  backfill:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Install Playwright Chromium
+        run: npx playwright install chromium --with-deps
+
+      - name: Compute window (last 20 days for schedule, or inputs for manual)
+        id: window
+        run: |
+          if [ "${{ github.event_name }}" = "schedule" ]; then
+            FROM=$(date -u -d '20 days ago' +%Y-%m-%d)
+            TO=$(date -u +%Y-%m-%d)
+            PHASE=invoices
+          else
+            FROM="${{ inputs.from }}"
+            TO="${{ inputs.to }}"
+            PHASE="${{ inputs.phase }}"
+            [ -z "$FROM" ] && FROM=$(date -u -d '20 days ago' +%Y-%m-%d)
+            [ -z "$TO" ]   && TO=$(date -u +%Y-%m-%d)
+            [ -z "$PHASE" ] && PHASE=invoices
+          fi
+          echo "from=$FROM"   >> "$GITHUB_OUTPUT"
+          echo "to=$TO"       >> "$GITHUB_OUTPUT"
+          echo "phase=$PHASE" >> "$GITHUB_OUTPUT"
+          echo "▶ Window: $FROM → $TO  phase=$PHASE"
+
+      - name: Run backfill
+        env:
+          BRIGHTDATA_BROWSER_WSS:    ${{ secrets.BRIGHTDATA_BROWSER_WSS }}
+          PEDIDOSYA_EMAIL:           ${{ secrets.PEDIDOSYA_EMAIL }}
+          PEDIDOSYA_PASSWORD:        ${{ secrets.PEDIDOSYA_PASSWORD }}
+          SUPABASE_URL:              ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          NODE_OPTIONS: '--max-old-space-size=4096'
+        run: |
+          npx tsx src/scripts/backfill-pedidosya.ts \
+            --from=${{ steps.window.outputs.from }} \
+            --to=${{ steps.window.outputs.to }} \
+            --phase=${{ steps.window.outputs.phase }}
