@@ -41,6 +41,7 @@
     "capture-pedidosya-detail-queries": "tsx --env-file=.env.local src/scripts/capture-pedidosya-detail-queries.ts",
     "capture-pedidosya-locales-mapping": "tsx --env-file=.env.local src/scripts/capture-pedidosya-locales-mapping.ts",
     "capture-pedidosya-orders-query": "tsx --env-file=.env.local src/scripts/capture-pedidosya-orders-query.ts",
+    "capture-pedidosya-secciones-3": "tsx --env-file=.env.local src/scripts/capture-pedidosya-secciones-3.ts",
     "probe-pedidosya-historico": "tsx --env-file=.env.local src/scripts/probe-pedidosya-historico-real.ts",
     "backfill-pedidosya": "NODE_OPTIONS='--max-old-space-size=4096' tsx --env-file=.env.local src/scripts/backfill-pedidosya.ts"
   },
