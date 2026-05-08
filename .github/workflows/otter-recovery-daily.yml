@@ -1,0 +1,85 @@
+name: Otter recovery (safety net)
+
+# Red de seguridad si el polling local (launchd en el Mac) cae.
+# NO reemplaza el polling 24/7 — lo respalda con un cron cada 6h
+# que detecta el gap (último ts_reference_local en BD vs ahora) y lo rellena.
+#
+# Si el polling vive sano, este workflow no hace nada (encuentra 0 pedidos nuevos).
+# Si el polling cayó, este workflow garantiza que el gap máximo sea ~6h.
+
+on:
+  schedule:
+    # Cada 6 horas: 00:00, 06:00, 12:00, 18:00 UTC
+    # = 19:00 / 01:00 / 07:00 / 13:00 Ecuador
+    - cron: '0 */6 * * *'
+  workflow_dispatch:
+    inputs:
+      from:
+        description: 'Fecha desde (ISO o YYYY-MM-DD). Default: auto-detect desde último insert en BD'
+        required: false
+        default: ''
+      to:
+        description: 'Fecha hasta (ISO o YYYY-MM-DD). Default: ahora'
+        required: false
+        default: ''
+      skip_details:
+        description: 'Saltar enriquecimiento de items+clientes (solo headers)'
+        type: boolean
+        required: false
+        default: false
+
+jobs:
+  recover:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Install Playwright Chromium
+        run: npx playwright install chromium --with-deps
+
+      - name: Recover headers (gap fill)
+        id: headers
+        env:
+          OTTER_EMAIL:               ${{ secrets.OTTER_EMAIL }}
+          OTTER_PASSWORD:            ${{ secrets.OTTER_PASSWORD }}
+          SUPABASE_URL:              ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          RECOVER_FROM:              ${{ inputs.from }}
+          RECOVER_TO:                ${{ inputs.to }}
+          NODE_OPTIONS: '--max-old-space-size=2048'
+        run: |
+          npx tsx src/scripts/recover-otter-gap.ts
+
+      - name: Recover details (items + clientes)
+        if: ${{ inputs.skip_details != 'true' }}
+        env:
+          OTTER_EMAIL:               ${{ secrets.OTTER_EMAIL }}
+          OTTER_PASSWORD:            ${{ secrets.OTTER_PASSWORD }}
+          SUPABASE_URL:              ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          NODE_OPTIONS: '--max-old-space-size=2048'
+        run: |
+          # FROM_TS: por defecto últimas 24h; auto-amplía si el cron horario detectó gap más grande.
+          # Para llenar gaps mayores a ~7 días (timeout 30 min insuficiente) → correr manualmente desde local.
+          FROM_TS=$(date -u -d '24 hours ago' +%Y-%m-%dT%H:%M:%S)
+          npx tsx src/scripts/recover-otter-details.ts "$FROM_TS"
+
+      - name: Health check post-recovery
+        if: always()
+        env:
+          SUPABASE_URL:              ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          curl -s "$SUPABASE_URL/rest/v1/v_polling_health?select=health_status,minutos_sin_inserts,last_ts_pedido" \
+            -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" \
+            -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
+            -H "Accept-Profile: otter_raw" || true
