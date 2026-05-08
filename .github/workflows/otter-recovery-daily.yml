@@ -43,10 +43,45 @@ jobs:
       - name: Install dependencies
         run: npm install
 
+      - name: Check if local polling is healthy (skip if so)
+        id: liveness
+        env:
+          SUPABASE_URL:              ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          FORCE_RUN: ${{ inputs.from != '' || inputs.to != '' }}
+        run: |
+          # Si el polling local escribió a la BD en los últimos 30 min, no hay gap
+          # que rellenar y NO debemos abrir una segunda sesión Otter (Otter expulsa
+          # la sesión nueva → el recovery falla y mata al polling sano).
+          # FORCE_RUN=true cuando el usuario pasó from/to manualmente vía workflow_dispatch.
+          if [ "$FORCE_RUN" = "true" ]; then
+            echo "Manual run con rango → skip liveness check"
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          RESP=$(curl -s "$SUPABASE_URL/rest/v1/v_polling_health?select=minutos_sin_inserts,health_status" \
+            -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" \
+            -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
+            -H "Accept-Profile: otter_raw")
+          echo "Health response: $RESP"
+          MIN=$(echo "$RESP" | python3 -c 'import json,sys; d=json.load(sys.stdin); print(float(d[0]["minutos_sin_inserts"]) if d else 9999)' 2>/dev/null || echo 9999)
+          STATUS=$(echo "$RESP" | python3 -c 'import json,sys; d=json.load(sys.stdin); print(d[0]["health_status"] if d else "UNKNOWN")' 2>/dev/null || echo UNKNOWN)
+          echo "min_sin_inserts=$MIN, health_status=$STATUS"
+          # Si polling local está sano (insertó hace <30 min), saltar recovery.
+          if awk -v m="$MIN" 'BEGIN{exit !(m<30)}'; then
+            echo "✅ Polling local sano (gap=${MIN}min < 30min) → no corro recovery"
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "⚠ Polling parece caído (gap=${MIN}min) → procedo con recovery"
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Install Playwright Chromium
+        if: steps.liveness.outputs.skip != 'true'
         run: npx playwright install chromium --with-deps
 
       - name: Recover headers (gap fill)
+        if: steps.liveness.outputs.skip != 'true'
         id: headers
         env:
           OTTER_EMAIL:               ${{ secrets.OTTER_EMAIL }}
@@ -60,7 +95,7 @@ jobs:
           npx tsx src/scripts/recover-otter-gap.ts
 
       - name: Recover details (items + clientes)
-        if: ${{ inputs.skip_details != 'true' }}
+        if: steps.liveness.outputs.skip != 'true' && inputs.skip_details != 'true'
         env:
           OTTER_EMAIL:               ${{ secrets.OTTER_EMAIL }}
           OTTER_PASSWORD:            ${{ secrets.OTTER_PASSWORD }}
