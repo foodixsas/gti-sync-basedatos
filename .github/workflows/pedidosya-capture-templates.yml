@@ -1,0 +1,37 @@
+name: PedidosYa — Capture Templates
+
+on:
+  workflow_dispatch:
+
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Install Playwright Chromium
+        run: npx playwright install chromium --with-deps
+
+      - name: Run bootstrap-and-capture
+        env:
+          BRIGHTDATA_BROWSER_WSS: ${{ secrets.BRIGHTDATA_BROWSER_WSS }}
+          PEDIDOSYA_EMAIL:        ${{ secrets.PEDIDOSYA_EMAIL }}
+          PEDIDOSYA_PASSWORD:     ${{ secrets.PEDIDOSYA_PASSWORD }}
+          NODE_OPTIONS: '--max-old-space-size=4096'
+        run: npx tsx src/scripts/bootstrap-and-capture.ts
+
+      - name: Upload templates artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: pedidosya-templates
+          path: pedidosya-templates.json
+          retention-days: 7

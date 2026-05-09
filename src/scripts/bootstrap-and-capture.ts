@@ -153,18 +153,42 @@ const SECTIONS: Section[] = [
   {
     id: 'ads-premium',
     url: 'https://portal-app.pedidosya.com/promotion/premium-placement',
-    waitMs: 8_000,
+    waitMs: 10_000,
     postLoad: async (page) => {
+      // Clickear tabs/links del sidebar interno
       const inner = page.locator('aside a, nav a, [role="navigation"] a, [class*="menu"] a, [class*="tab"]').filter({ hasText: /./ });
       const count = await inner.count().catch(() => 0);
-      for (let i = 0; i < Math.min(count, 6); i++) {
+      for (let i = 0; i < Math.min(count, 8); i++) {
         try {
           const el = inner.nth(i);
           if (await el.isVisible({ timeout: 500 }).catch(() => false)) {
             await el.click({ force: true, timeout: 2000 }).catch(() => {});
-            await page.waitForTimeout(4_000);
+            await page.waitForTimeout(5_000);
           }
         } catch {}
+      }
+      // Probar sub-rutas alternativas de Ads
+      const altUrls = [
+        '/promotion/premium-placement/dashboard',
+        '/promotion/premium-placement/campaigns',
+        '/promotion/premium-placement/reports',
+        '/promotion/premium-placement/history',
+        '/marketing-services',
+      ];
+      for (const alt of altUrls) {
+        await page.goto(`https://portal-app.pedidosya.com${alt}`, { waitUntil: 'domcontentloaded', timeout: 30_000 }).catch(() => {});
+        await page.waitForTimeout(6_000);
+        const url = page.url();
+        console.log(`     ▸ ${alt} → ${url.includes('/login') ? 'redirect /login' : url.slice(30, 80)}`);
+        if (!url.includes('/login') && !url.includes('/2fa')) {
+          // Si llegó, clickear tabs internos también
+          const tabs = page.locator('button[role="tab"], [class*="tab"]:visible, nav a:visible').filter({ hasText: /./ });
+          const tc = await tabs.count().catch(() => 0);
+          for (let i = 0; i < Math.min(tc, 4); i++) {
+            await tabs.nth(i).click({ force: true }).catch(() => {});
+            await page.waitForTimeout(3_000);
+          }
+        }
       }
     },
   },
