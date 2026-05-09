@@ -241,7 +241,6 @@ async function loginAndCaptureTemplates(page: Page): Promise<Record<string, Temp
 }
 
 // ── GraphQL helper — page.request.post (funciona para queries de finance) ────
-// Para ListOrders devuelve 403 por PerimeterX (ver phaseOrders).
 async function gql(page: Page, t: Template, variables: any): Promise<any> {
   const headers = Object.fromEntries(
     Object.entries(t.headers).filter(([k]) => {
@@ -253,6 +252,29 @@ async function gql(page: Page, t: Template, variables: any): Promise<any> {
   const resp = await page.request.post(t.url, { headers, data: body, timeout: 60_000 });
   const txt = await resp.text();
   if (resp.status() !== 200) throw new Error(`HTTP ${resp.status()}: ${txt.slice(0, 200)}`);
+  let json: any;
+  try { json = JSON.parse(txt); } catch { throw new Error(`Bad JSON: ${txt.slice(0, 200)}`); }
+  if (json.errors) throw new Error(`GraphQL errors: ${JSON.stringify(json.errors).slice(0, 300)}`);
+  return json.data;
+}
+
+// ── GraphQL helper con fetch nativo — evita fingerprint de Playwright que bloquea PerimeterX ──
+// Usar para ListOrders que devuelve 403 con page.request.post.
+async function gqlFetch(t: Template, variables: any): Promise<any> {
+  const headers = Object.fromEntries(
+    Object.entries(t.headers).filter(([k]) => {
+      const lk = k.toLowerCase();
+      return !lk.startsWith(':') && lk !== 'cookie' && lk !== 'host' && lk !== 'content-length';
+    })
+  );
+  const body = { ...t.body, variables };
+  const resp = await fetch(t.url, {
+    method: 'POST',
+    headers: { ...headers, 'content-type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  const txt = await resp.text();
+  if (resp.status !== 200) throw new Error(`HTTP ${resp.status}: ${txt.slice(0, 200)}`);
   let json: any;
   try { json = JSON.parse(txt); } catch { throw new Error(`Bad JSON: ${txt.slice(0, 200)}`); }
   if (json.errors) throw new Error(`GraphQL errors: ${JSON.stringify(json.errors).slice(0, 300)}`);
@@ -444,7 +466,7 @@ async function phaseOrders(page: Page, t: Record<string, Template>, runId: numbe
             globalVendorCodes: VENDOR_CODES_PARAM,
           },
         };
-        const d = await gql(page, t.ListOrders, variables);
+        const d = await gqlFetch(t.ListOrders, variables);
         const orders = d?.orders?.listOrders?.orders || [];
         nextPageToken = d?.orders?.listOrders?.nextPageToken || undefined;
 

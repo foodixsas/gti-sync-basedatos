@@ -51,6 +51,9 @@
     "pedidosya-auth-bootstrap": "tsx --env-file=.env.local src/scripts/pedidosya-auth-bootstrap.ts",
     "capture-templates-extendido": "tsx --env-file=.env.local src/scripts/capture-templates-extendido.ts",
     "bootstrap-and-capture": "tsx --env-file=.env.local src/scripts/bootstrap-and-capture.ts",
+    "load-reviews-from-json": "tsx --env-file=.env.local src/scripts/load-reviews-from-json.ts",
+    "test-replay": "tsx --env-file=.env.local src/scripts/test-replay.ts",
+    "backfill-invoice-lines": "tsx --env-file=.env.local src/scripts/backfill-invoice-lines.ts",
     "probe-pedidosya-historico": "tsx --env-file=.env.local src/scripts/probe-pedidosya-historico-real.ts",
     "backfill-pedidosya": "NODE_OPTIONS='--max-old-space-size=4096' tsx --env-file=.env.local src/scripts/backfill-pedidosya.ts"
   },
