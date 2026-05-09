@@ -42,7 +42,7 @@ jobs:
           if [ "${{ github.event_name }}" = "schedule" ]; then
             FROM=$(date -u -d '20 days ago' +%Y-%m-%d)
             TO=$(date -u +%Y-%m-%d)
-            PHASE=invoices
+            PHASE=all
           else
             FROM="${{ inputs.from }}"
             TO="${{ inputs.to }}"
