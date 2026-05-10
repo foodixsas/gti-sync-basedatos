@@ -274,6 +274,8 @@ async function gqlFetch(t: Template, variables: any): Promise<any> {
     body: JSON.stringify(body),
   });
   const txt = await resp.text();
+  // 403 para ListOrders = semana fuera del rango disponible (datos no existen) → tratar como vacío
+  if (resp.status === 403) return null;
   if (resp.status !== 200) throw new Error(`HTTP ${resp.status}: ${txt.slice(0, 200)}`);
   let json: any;
   try { json = JSON.parse(txt); } catch { throw new Error(`Bad JSON: ${txt.slice(0, 200)}`); }
@@ -467,6 +469,7 @@ async function phaseOrders(page: Page, t: Record<string, Template>, runId: numbe
           },
         };
         const d = await gqlFetch(t.ListOrders, variables);
+        if (d === null) { console.log(`     ℹ sem ${fmtDate(r.start)}: fuera del rango disponible, saltando`); break; }
         const orders = d?.orders?.listOrders?.orders || [];
         nextPageToken = d?.orders?.listOrders?.nextPageToken || undefined;
 
