@@ -11,8 +11,13 @@ const TWILIO_TOKEN = process.env.TWILIO_AUTH_TOKEN!;
 const TWILIO_FROM = process.env.TWILIO_WHATSAPP_FROM!; // ej "whatsapp:+14155238886"
 const ALERT_TO = process.env.ALERT_WHATSAPP_TO!;       // ej "whatsapp:+5939XXXXXXXX"
 
-const UMBRAL_MINUTOS = Number(process.env.ALERT_UMBRAL_MINUTOS || 30);
 const COOLDOWN_MIN = Number(process.env.ALERT_COOLDOWN_MIN || 60);
+
+// Estados de v_polling_health que disparan alerta crítica.
+// DETENIDO: polling no está corriendo. COLGADO: heartbeat ausente > 3 min.
+// "SIN_PEDIDOS_NUEVOS" NO dispara alerta crítica (puede ser hora valle legítima);
+// el chequeo de anomalía vs histórico cubre ese caso por separado.
+const ALERT_STATUSES = new Set(['DETENIDO', 'COLGADO']);
 
 function ts(): string { return new Date().toISOString().replace('T', ' ').slice(0, 19); }
 function log(level: 'info' | 'warn' | 'error', msg: string): void {
@@ -47,7 +52,7 @@ async function main() {
   }
   const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { persistSession: false } });
 
-  log('info', `▶ Check polling health (umbral=${UMBRAL_MINUTOS}min, cooldown=${COOLDOWN_MIN}min)`);
+  log('info', `▶ Check polling health (alerta si status ∈ ${Array.from(ALERT_STATUSES).join(',')} | cooldown=${COOLDOWN_MIN}min)`);
 
   const { data: health, error: hErr } = await (supabase.schema('otter_raw' as any) as any)
     .from('v_polling_health')
@@ -64,22 +69,23 @@ async function main() {
   }
 
   const minutos = Number(health.minutos_sin_inserts ?? 0);
+  const minutosHb = Number(health.minutos_sin_heartbeat ?? 0);
   const polling = String(health.health_status ?? '?');
-  log('info', `📊 health_status=${polling} minutos_sin_inserts=${minutos} last_ts=${health.last_ts_pedido || '?'}`);
+  log('info', `📊 health_status=${polling} | sin_inserts=${minutos.toFixed(0)}min | sin_heartbeat=${minutosHb.toFixed(0)}min | last_ts=${health.last_ts_pedido || '?'}`);
 
-  if (minutos <= UMBRAL_MINUTOS) {
-    log('info', `✓ OK — ${minutos}min ≤ umbral ${UMBRAL_MINUTOS}min. No alerta de polling.`);
-    // Polling vivo → chequeamos anomalía de volumen y salimos
+  if (!ALERT_STATUSES.has(polling)) {
+    log('info', `✓ Status no crítico (${polling}). Sin alerta de polling.`);
+    // Polling vivo o sin pedidos esperables → chequeo de anomalía vs histórico cubre falsos negativos
     await checkAnomalyVolumen(supabase as any);
     return;
   }
 
-  // Cooldown: ¿hay alerta reciente del mismo tipo?
+  // Cooldown: ¿hay alerta reciente de cualquier estado de polling?
   const cooldownIso = new Date(Date.now() - COOLDOWN_MIN * 60_000).toISOString();
   const { data: recent } = await (supabase.schema('otter_raw' as any) as any)
     .from('alert_log')
     .select('alert_id, alerted_at, metric_value')
-    .eq('alert_type', 'polling_down')
+    .like('alert_type', 'polling_%')
     .gte('alerted_at', cooldownIso)
     .order('alerted_at', { ascending: false })
     .limit(1);
@@ -89,20 +95,21 @@ async function main() {
     return;
   }
 
-  const msg = `🚨 *Otter polling caído*\n` +
-              `Sin inserts hace *${minutos} min* (umbral ${UMBRAL_MINUTOS}).\n` +
+  const msg = `🚨 *Otter polling ${polling}*\n` +
+              `Sin heartbeat: ${minutosHb.toFixed(0)}min\n` +
+              `Sin inserts: ${minutos.toFixed(0)}min\n` +
               `Último pedido: ${health.last_ts_pedido || 'desconocido'}\n` +
-              `Estado: ${polling}\n` +
+              `Host: ${health.host_name || '?'} pid=${health.process_pid || '?'}\n` +
               `Revisar launchd Mac o GH Actions safety net.`;
 
-  log('warn', `🚨 DISPARANDO ALERTA: ${minutos}min sin inserts`);
+  log('warn', `🚨 DISPARANDO ALERTA: status=${polling}`);
   const result = await sendWhatsApp(msg);
 
   await (supabase.schema('otter_raw' as any) as any)
     .from('alert_log')
     .insert({
-      alert_type: 'polling_down',
-      metric_value: minutos,
+      alert_type: `polling_${polling.toLowerCase()}`,
+      metric_value: minutosHb,
       message: msg,
       channel: 'whatsapp',
       delivery_status: result.ok ? `twilio_sid:${result.sid}` : `failed:${result.error?.slice(0, 200)}`,
