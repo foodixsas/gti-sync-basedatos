@@ -52,6 +52,30 @@ async function main() {
   }
   const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { persistSession: false } });
 
+  // Test mode: salta todas las validaciones y manda un WhatsApp de prueba.
+  // Útil para validar que las creds Twilio + número destino funcionan.
+  if (process.env.SEND_TEST === 'true') {
+    log('info', '🧪 SEND_TEST=true → enviando WhatsApp de prueba');
+    const testMsg = `✅ *Prueba de alerta Otter*\n` +
+                    `Si recibís este mensaje, la cadena Supabase → GH Actions → Twilio funciona correctamente.\n` +
+                    `Las alertas reales solo dispararán cuando v_polling_health reporte *DETENIDO* o *COLGADO*.\n` +
+                    `Enviado: ${new Date().toISOString()}`;
+    const result = await sendWhatsApp(testMsg);
+    log(result.ok ? 'info' : 'error', `Twilio: ${result.ok ? 'OK sid=' + result.sid : 'FAIL ' + result.error}`);
+    await (supabase.schema('otter_raw' as any) as any)
+      .from('alert_log')
+      .insert({
+        alert_type: 'test',
+        metric_value: 0,
+        message: testMsg,
+        channel: 'whatsapp',
+        delivery_status: result.ok ? `twilio_sid:${result.sid}` : `failed:${result.error?.slice(0, 200)}`,
+        raw_response: result.raw,
+      });
+    if (!result.ok) process.exit(1);
+    return;
+  }
+
   log('info', `▶ Check polling health (alerta si status ∈ ${Array.from(ALERT_STATUSES).join(',')} | cooldown=${COOLDOWN_MIN}min)`);
 
   const { data: health, error: hErr } = await (supabase.schema('otter_raw' as any) as any)

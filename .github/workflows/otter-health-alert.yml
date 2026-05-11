@@ -13,10 +13,11 @@ on:
     - cron: '*/10 * * * *' # cada 10 min
   workflow_dispatch:
     inputs:
-      umbral_minutos:
-        description: 'Umbral de minutos sin inserts (default 30)'
+      send_test:
+        description: 'Mandar WhatsApp de prueba (ignora validaciones, dispara mensaje directo)'
+        type: boolean
         required: false
-        default: '30'
+        default: false
 
 jobs:
   check:
@@ -41,5 +42,5 @@ jobs:
           TWILIO_AUTH_TOKEN:         ${{ secrets.TWILIO_AUTH_TOKEN }}
           TWILIO_WHATSAPP_FROM:      ${{ secrets.TWILIO_WHATSAPP_FROM }}
           ALERT_WHATSAPP_TO:         ${{ secrets.ALERT_WHATSAPP_TO }}
-          ALERT_UMBRAL_MINUTOS:      ${{ github.event.inputs.umbral_minutos || '30' }}
+          SEND_TEST:                 ${{ inputs.send_test || 'false' }}
         run: npx tsx src/scripts/check-otter-alert.ts
