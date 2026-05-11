@@ -140,8 +140,14 @@ async function main() {
 
   if (!ALERT_STATUSES.has(polling)) {
     log('info', `✓ Status no crítico (${polling}). Sin alerta de polling.`);
-    // Polling vivo o sin pedidos esperables → chequeo de anomalía vs histórico cubre falsos negativos
-    await checkAnomalyVolumen(supabase as any);
+    // Solo chequear anomalía cuando polling status === 'OK'.
+    // Si está en SIN_PEDIDOS_NUEVOS, la "anomalía de volumen" sería duplicar la misma señal:
+    // v_polling_health ya nos dice "no hay datos recientes". No vale spamear con la misma info.
+    if (polling === 'OK') {
+      await checkAnomalyVolumen(supabase as any);
+    } else {
+      log('info', `↳ Skip check de anomalía (polling=${polling} ya implica baja ingesta)`);
+    }
     return;
   }
 
