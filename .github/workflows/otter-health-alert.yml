@@ -1,0 +1,45 @@
+name: Otter health alert
+
+# Monitorea el polling Otter cada 10 min. Si lleva más de 30 min sin inserts,
+# manda WhatsApp a Daniel via Twilio. Dedupe por cooldown (1h) para no spammear.
+#
+# Secrets requeridos (en repo settings → Actions secrets):
+#   SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
+#   TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_WHATSAPP_FROM
+#   ALERT_WHATSAPP_TO  (ej "whatsapp:+5939XXXXXXXX")
+
+on:
+  schedule:
+    - cron: '*/10 * * * *' # cada 10 min
+  workflow_dispatch:
+    inputs:
+      umbral_minutos:
+        description: 'Umbral de minutos sin inserts (default 30)'
+        required: false
+        default: '30'
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install minimal deps
+        run: npm install --no-fund --no-audit @supabase/supabase-js tsx
+
+      - name: Run alert check
+        env:
+          SUPABASE_URL:              ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          TWILIO_ACCOUNT_SID:        ${{ secrets.TWILIO_ACCOUNT_SID }}
+          TWILIO_AUTH_TOKEN:         ${{ secrets.TWILIO_AUTH_TOKEN }}
+          TWILIO_WHATSAPP_FROM:      ${{ secrets.TWILIO_WHATSAPP_FROM }}
+          ALERT_WHATSAPP_TO:         ${{ secrets.ALERT_WHATSAPP_TO }}
+          ALERT_UMBRAL_MINUTOS:      ${{ github.event.inputs.umbral_minutos || '30' }}
+        run: npx tsx src/scripts/check-otter-alert.ts

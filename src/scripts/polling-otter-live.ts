@@ -2,30 +2,45 @@
 // Cada N segundos consulta TODAY al endpoint analytics, detecta pedidos nuevos
 // (no presentes en otter_pedidos), los inserta + dispara OrderDetails para cada uno.
 // Auto-refresh JWT al 401/403.
+//
+// Resiliencia: usa src/lib/otter-shared (login cascade, storage_state persistido,
+// captura de templates SIN click frágil, depth-limit anti loop, retry exponencial).
 
-import { chromium, type Browser, type Page, type BrowserContext, type Response } from 'playwright';
+import { chromium, type Browser, type Page, type BrowserContext } from 'playwright';
 import { createClient } from '@supabase/supabase-js';
 import * as os from 'os';
+import {
+  LIST_ENDPOINT,
+  DETAILS_ENDPOINT,
+  TEMPLATE_CACHE_MAX_AGE_MS,
+  log,
+  loadStorageState,
+  captureBothTemplatesResilient,
+  buildHeaders,
+  parseCustomerNote,
+  money,
+  toIso,
+  rowToObject,
+  withRetry,
+  type Template,
+} from '../lib/otter-shared';
 
-const OTTER_URL = 'https://manager.tryotter.com/';
 const EMAIL = process.env.OTTER_EMAIL!;
 const PASSWORD = process.env.OTTER_PASSWORD!;
 const SUPABASE_URL = process.env.SUPABASE_URL!;
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
-const LIST_ENDPOINT = 'https://manager.tryotter.com/api/analytics/table/order_performance_cullinan';
-const DETAILS_ENDPOINT = 'https://manager.tryotter.com/api/graphql?operation=OrderDetails';
-const POLL_INTERVAL_MS = 5_000;          // 5 seg
-const REFRESH_TEMPLATE_EVERY_MS = 9 * 60 * 1000; // refrescar JWT preventivo cada 9 min
-const HEALTH_LOG_EVERY_N_POLLS = 60;     // log de salud cada 5 min
-const HEARTBEAT_EVERY_MS = 30_000;       // 30 seg — basado en tiempo, no en N polls (un poll puede tardar >30s en colas grandes)
-const MAX_CONSECUTIVE_ERRORS = 10;       // tras 10 errores seguidos → relanzar browser
-const RELAUNCH_BACKOFF_MS = 15_000;      // espera entre relaunch attempts
+const POLL_INTERVAL_MS = 5_000;
+const REFRESH_TEMPLATE_EVERY_MS = TEMPLATE_CACHE_MAX_AGE_MS; // 9 min — sincronizado con cache TTL
+const HEALTH_LOG_EVERY_N_POLLS = 60;
+const HEARTBEAT_EVERY_MS = 30_000;
+const MAX_CONSECUTIVE_ERRORS = 10;
+const RELAUNCH_BACKOFF_MS = 15_000;
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { persistSession: false } });
 
-let templateList: any = null;
-let templateDetails: any = null;
+let templateList: Template | null = null;
+let templateDetails: Template | null = null;
 let lastTemplateRefreshAt = 0;
 let pollCount = 0;
 let pedidosNuevosTotal = 0;
@@ -38,140 +53,20 @@ let pageRef: Page | null = null;
 let shuttingDown = false;
 let lastHeartbeatAt = 0;
 
-// ─── Helpers ────────────────────────────────────────────────────────────────
-function ts(): string {
-  return new Date().toISOString().replace('T', ' ').slice(0, 19);
-}
+// ─── Captura/refresh de templates ───────────────────────────────────────────
 
-function log(level: 'info' | 'warn' | 'error', msg: string) {
-  console.log(`[${ts()}] ${level.toUpperCase()}: ${msg}`);
-}
-
-function money(m: any): number {
-  if (!m) return 0;
-  return (m.units || 0) + (m.nanos || 0) / 1e9;
-}
-
-function toIso(v: any): string | null {
-  if (v === null || v === undefined || v === '') return null;
-  const n = Number(v);
-  if (Number.isFinite(n) && n > 1_000_000_000_000) return new Date(n).toISOString();
-  if (typeof v === 'string' && /^\d{4}-\d{2}-\d{2}/.test(v)) return v;
-  return null;
-}
-
-async function login(page: Page) {
-  await page.goto(OTTER_URL, { waitUntil: 'domcontentloaded', timeout: 60_000 });
-  await page.waitForLoadState('load', { timeout: 30_000 }).catch(() => {});
-  await page.fill('input[type="email"]', EMAIL);
-  await page.fill('input[type="password"]', PASSWORD);
-  await page.locator('button[type="submit"], button:has-text("Iniciar")').first().click();
-  await page.waitForURL(u => !u.toString().includes('/login'), { timeout: 30_000 }).catch(() => {});
-  await page.waitForTimeout(3000);
-}
-
-async function captureBothTemplates(page: Page) {
-  log('info', '🔄 Refrescando templates (list + OrderDetails)...');
-  const candidatesList: any[] = [];
-  let detailsCaptured: any = null;
-
-  const handler = async (resp: Response) => {
-    const url = resp.url();
-    if (resp.request().method() !== 'POST') return;
-    const post = resp.request().postData();
-    if (!post) return;
-
-    if (url.includes('/api/analytics/table/order_performance_cullinan')) {
-      try {
-        const body = JSON.parse(post);
-        candidatesList.push({ requestBody: body, requestHeaders: resp.request().headers() });
-      } catch {}
-    } else if (url.includes('/api/graphql') && !detailsCaptured) {
-      try {
-        const body = JSON.parse(post);
-        if (body.operationName === 'OrderDetails') {
-          detailsCaptured = { requestBody: body, requestHeaders: resp.request().headers() };
-        }
-      } catch {}
-    }
-  };
-
-  page.on('response', handler);
-
-  await page.goto('https://manager.tryotter.com/orders?dayRangeFilter=TODAY', { waitUntil: 'domcontentloaded', timeout: 60_000 });
-  await page.waitForLoadState('load', { timeout: 30_000 }).catch(() => {});
-  await page.waitForTimeout(8000);
-
-  try {
-    const noThanks = page.locator('button:has-text("NO, THANKS")').first();
-    if (await noThanks.isVisible({ timeout: 2000 })) await noThanks.click();
-  } catch {}
-
-  // Click primer pedido para capturar OrderDetails template
-  try {
-    await page.waitForSelector('table tbody tr', { timeout: 15_000 });
-    await page.locator('table tbody tr').first().click();
-    await page.waitForTimeout(4000);
-    await page.keyboard.press('Escape');
-    await page.waitForTimeout(1000);
-  } catch (e: any) {
-    log('warn', `No pude clickear primera fila: ${e.message.slice(0, 100)}`);
-  }
-
-  page.off('response', handler);
-
-  const list = candidatesList.find(c => {
-    const cols = c.requestBody?.columns || [];
-    return cols.some((col: any) => col.key === 'external_order_display_id') && c.requestBody?.paginate === true;
-  });
-  if (!list) throw new Error('No template de listado capturado');
-  if (!detailsCaptured) throw new Error('No template de OrderDetails capturado');
-
+async function refreshTemplates(): Promise<void> {
+  if (!pageRef || !contextRef) throw new Error('refreshTemplates: page/context nulos');
+  const { list, details } = await captureBothTemplatesResilient(pageRef, contextRef, EMAIL, PASSWORD);
   templateList = list;
-  templateDetails = detailsCaptured;
+  templateDetails = details;
   lastTemplateRefreshAt = Date.now();
-  log('info', '✓ Templates capturados');
 }
 
-function buildHeaders(template: any): Record<string, string> {
-  const headers: Record<string, string> = { 'Content-Type': 'application/json', 'Accept': 'application/json' };
-  const tpl = template.requestHeaders || {};
-  for (const k of Object.keys(tpl)) {
-    const lk = k.toLowerCase();
-    if (lk.startsWith(':') || lk === 'cookie' || lk === 'host' || lk === 'content-length' || lk === 'content-type') continue;
-    headers[k] = tpl[k];
-  }
-  return headers;
-}
+// ─── Fetch listado HOY (con retry exponencial) ──────────────────────────────
 
-function rowToObject(row: any[]): Record<string, any> {
-  const obj: Record<string, any> = {};
-  for (const cell of row) obj[cell.key] = cell.value;
-  return obj;
-}
-
-function parseCustomerNote(note: string | null | undefined) {
-  if (!note) return {};
-  return {
-    cedula_ruc: note.match(/Tax ID:\s*(\d+)/i)?.[1]?.trim()
-              || note.match(/Nro\.?:\s*(\d+)/i)?.[1]?.trim()
-              || note.match(/CI:\s*(\d+)/i)?.[1]?.trim()
-              || null,
-    razon_social: note.match(/Facturar a empresa:\s*([^-|]+?)(?:\s*-|$)/i)?.[1]?.trim()
-               || note.match(/Legal Entity Name:\s*([^|]+?)(?:\s*\||$)/i)?.[1]?.trim()
-               || null,
-    email_real: note.match(/Email:\s*([^\s|]+@[^\s|]+)/i)?.[1]?.trim() || null,
-    direccion: note.match(/Address:\s*(.+?)(?:\s*\||$)/i)?.[1]?.trim() || null,
-    medio_pago: note.match(/Medio de pago:\s*([^|]+?)(?:\s*\||$)/i)?.[1]?.trim()
-             || note.match(/Datos de pago:\s*([^.]+)/i)?.[1]?.trim()
-             || null,
-    prepagado: /Prepagado/i.test(note),
-    codigo_check_in: note.match(/Código de check-in:\s*(\d+)/i)?.[1]?.trim() || null,
-    codigo_entrega: note.match(/Código de Entrega:\s*(\d+)/i)?.[1]?.trim() || null,
-  };
-}
-
-async function fetchTodayOrders(page: Page): Promise<any[]> {
+async function fetchTodayOrdersOnce(page: Page): Promise<any[]> {
+  if (!templateList) throw new Error('templateList no inicializado');
   const today = new Date();
   const minDate = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 0, 0, 0, 0).toISOString();
   const maxDate = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59, 999).toISOString();
@@ -190,26 +85,39 @@ async function fetchTodayOrders(page: Page): Promise<any[]> {
 
   if (resp.status() === 401 || resp.status() === 403) {
     log('warn', `🔒 List ${resp.status()} — refrescando templates`);
-    await captureBothTemplates(page);
-    return fetchTodayOrders(page);
+    await refreshTemplates();
+    throw new Error(`List ${resp.status()} (refrescado, retry pls)`);
   }
-  if (!resp.ok()) {
-    throw new Error(`List HTTP ${resp.status()}`);
-  }
+  if (!resp.ok()) throw new Error(`List HTTP ${resp.status()}`);
 
   const json = await resp.json();
   return (json.rows || []).map(rowToObject);
 }
 
+async function fetchTodayOrders(page: Page): Promise<any[]> {
+  // Retry con backoff: tolera glitches de red, pero NO retry si fue 401/403 ya manejado
+  return withRetry(() => fetchTodayOrdersOnce(page), {
+    attempts: 3,
+    baseDelayMs: 500,
+    label: 'fetchTodayOrders',
+  });
+}
+
+// ─── Fetch OrderDetails (con auto-refresh JWT) ──────────────────────────────
+
 async function fetchOrderDetails(page: Page, orderId: string): Promise<any> {
-  const body = { ...templateDetails.requestBody, variables: { input: { enrichData: true, orderId } } };
+  if (!templateDetails) throw new Error('templateDetails no inicializado');
+  const body = {
+    ...templateDetails.requestBody,
+    variables: { input: { enrichData: true, orderId } },
+  };
   const resp = await page.request.post(DETAILS_ENDPOINT, {
     headers: buildHeaders(templateDetails),
     data: body,
     timeout: 20_000,
   });
   if (resp.status() === 401 || resp.status() === 403) {
-    await captureBothTemplates(page);
+    await refreshTemplates();
     return fetchOrderDetails(page, orderId);
   }
   if (!resp.ok()) return null;
@@ -217,39 +125,45 @@ async function fetchOrderDetails(page: Page, orderId: string): Promise<any> {
   return JSON.parse(txt)?.data?.orderDetails;
 }
 
+// ─── Run management ─────────────────────────────────────────────────────────
+
 async function getRunId(): Promise<string> {
-  // Hay un solo "run de polling" abierto; lo creamos al inicio
-  const { data: existing } = await (supabase.schema('otter_raw' as any) as any)
+  // Buscar run de polling existente. limit(1) sin maybeSingle para tolerar duplicados
+  // (crashes anteriores pueden dejar varios runs en 'running').
+  const { data: existing, error: existErr } = await (supabase.schema('otter_raw' as any) as any)
     .from('otter_scrape_runs')
     .select('run_id')
     .eq('run_type', 'polling')
     .eq('status', 'running')
     .order('started_at', { ascending: false })
-    .limit(1)
-    .maybeSingle();
+    .limit(1);
 
-  if (existing?.run_id) return existing.run_id;
+  if (existErr) log('warn', `[getRunId.select] ${existErr.message}`);
+  if (existing && existing.length > 0 && existing[0]?.run_id) {
+    return existing[0].run_id;
+  }
 
-  const { data: created } = await (supabase.schema('otter_raw' as any) as any)
+  const { data: created, error: createErr } = await (supabase.schema('otter_raw' as any) as any)
     .from('otter_scrape_runs')
     .insert({ run_type: 'polling', notes: 'Polling 24/7 cada 5 seg sobre TODAY' })
     .select('run_id')
     .single();
-  return created!.run_id;
+  if (createErr || !created?.run_id) {
+    throw new Error(`[getRunId.insert] ${createErr?.message || 'sin run_id en respuesta'}`);
+  }
+  return created.run_id;
 }
 
 async function processOrder(page: Page, runId: string, listRow: any) {
   const otterId = listRow.order_id;
   if (!otterId) return false;
 
-  // ¿Ya existe?
   const { data: exists } = await (supabase.schema('otter_raw' as any) as any)
     .from('otter_pedidos')
     .select('otter_internal_id')
     .eq('otter_internal_id', otterId)
     .maybeSingle();
 
-  // Datos del listado → inserción base
   const tsRefLocalIso = toIso(listRow.reference_time_local_without_tz);
   const tsRefLocal = tsRefLocalIso ? tsRefLocalIso.replace('Z', '') : null;
   const tsRef = toIso(listRow.partition_source_timestamp) || tsRefLocalIso;
@@ -297,14 +211,11 @@ async function processOrder(page: Page, runId: string, listRow: any) {
     .from('otter_pedidos')
     .upsert(baseRow, { onConflict: 'otter_internal_id' });
 
-  // Si NO existía → fetchar detalles (pedido nuevo)
   if (!exists) {
     const od = await fetchOrderDetails(page, otterId);
     if (od) {
       const det = od.details || {};
       const customerNote = det.fulfillmentInfo?.customerNote || null;
-
-      // UPDATE con detalles + parser cliente
       const parsed = parseCustomerNote(customerNote);
       const customerName = det.customerName || null;
 
@@ -329,7 +240,6 @@ async function processOrder(page: Page, runId: string, listRow: any) {
         })
         .eq('otter_internal_id', otterId);
 
-      // INSERT items + modificadores en otter_pedido_productos
       const items = od.items || [];
       let lineCounter = 0;
       const productosToInsert: any[] = [];
@@ -408,23 +318,35 @@ async function heartbeat(runId: string, ordersTodayCount: number) {
     .eq('run_id', runId);
 }
 
-async function relaunchBrowser(): Promise<Page> {
+// ─── Bootstrap del browser (storage_state si existe; login si no) ───────────
+
+async function bootstrapBrowser(): Promise<void> {
+  browserRef = await chromium.launch({ headless: true });
+  const storageState = loadStorageState();
+  contextRef = await browserRef.newContext({
+    viewport: { width: 1280, height: 800 },
+    locale: 'es-EC',
+    storageState,
+  });
+  pageRef = await contextRef.newPage();
+
+  // captureBothTemplatesResilient detecta sesión, re-loguea si hace falta y captura
+  // templates. Guarda storage_state después de cualquier re-login.
+  await refreshTemplates();
+}
+
+async function relaunchBrowser(): Promise<void> {
   log('warn', '♻️  Relanzando browser desde cero...');
   try { if (browserRef) await browserRef.close(); } catch {}
   browserRef = null; contextRef = null; pageRef = null;
   await new Promise(r => setTimeout(r, RELAUNCH_BACKOFF_MS));
-
-  browserRef = await chromium.launch({ headless: true });
-  contextRef = await browserRef.newContext({ viewport: { width: 1280, height: 800 }, locale: 'es-EC' });
-  pageRef = await contextRef.newPage();
-  await login(pageRef);
-  await captureBothTemplates(pageRef);
+  await bootstrapBrowser();
   consecutiveErrors = 0;
   log('info', '✓ Browser relanzado OK');
-  return pageRef;
 }
 
 // ─── Main loop ──────────────────────────────────────────────────────────────
+
 async function pollLoop(runId: string) {
   while (!shuttingDown) {
     pollCount++;
@@ -433,9 +355,8 @@ async function pollLoop(runId: string) {
     try {
       if (!pageRef) throw new Error('pageRef nulo (browser no inicializado)');
 
-      // Refresh preventivo del template cada 9 min (JWT vive ~10 min)
       if (Date.now() - lastTemplateRefreshAt > REFRESH_TEMPLATE_EVERY_MS) {
-        await captureBothTemplates(pageRef);
+        await refreshTemplates();
       }
 
       const orders = await fetchTodayOrders(pageRef);
@@ -449,7 +370,7 @@ async function pollLoop(runId: string) {
         }
       }
 
-      consecutiveErrors = 0; // resetea racha al primer poll exitoso
+      consecutiveErrors = 0;
 
       if (pollCount % HEALTH_LOG_EVERY_N_POLLS === 0) {
         const dt = Date.now() - t0;
@@ -460,31 +381,29 @@ async function pollLoop(runId: string) {
     } catch (e: any) {
       errorsTotal++;
       consecutiveErrors++;
-      log('error', `Poll error #${consecutiveErrors}: ${e.message.slice(0, 200)}`);
+      log('error', `Poll error #${consecutiveErrors}: ${e.message?.slice(0, 200)}`);
 
-      // Tras N errores seguidos → relanzar browser entero (Mac despertó, JWT roto, page closed, etc.)
       if (consecutiveErrors >= MAX_CONSECUTIVE_ERRORS) {
         try {
           await relaunchBrowser();
         } catch (re: any) {
-          log('error', `Relaunch falló: ${re.message.slice(0, 200)}. Saliendo con código 2 para que launchd reinicie.`);
-          await closeRun(runId, 'failed', `Relaunch failed after ${consecutiveErrors} consecutive errors: ${re.message.slice(0, 300)}`);
+          log('error', `Relaunch falló: ${re.message?.slice(0, 200)}. Saliendo con código 2 para que launchd reinicie.`);
+          await closeRun(runId, 'failed', `Relaunch failed after ${consecutiveErrors} consecutive errors: ${re.message?.slice(0, 300)}`);
           process.exit(2);
         }
-      } else if (consecutiveErrors % 3 === 0 && pageRef) {
-        try { await captureBothTemplates(pageRef); } catch (re: any) {
-          log('error', `Refresh template falló: ${re.message.slice(0, 100)}`);
+      } else if (consecutiveErrors % 3 === 0) {
+        try { await refreshTemplates(); } catch (re: any) {
+          log('error', `Refresh template falló: ${re.message?.slice(0, 100)}`);
         }
       }
     }
 
-    // Heartbeat basado en tiempo (independiente de la velocidad del ciclo)
     if (Date.now() - lastHeartbeatAt >= HEARTBEAT_EVERY_MS) {
       try {
         await heartbeat(runId, ordersLen);
         lastHeartbeatAt = Date.now();
       } catch (he: any) {
-        log('warn', `Heartbeat write falló: ${he.message.slice(0, 100)}`);
+        log('warn', `Heartbeat write falló: ${he.message?.slice(0, 100)}`);
       }
     }
 
@@ -521,7 +440,6 @@ async function main() {
   currentRunId = runId;
   log('info', `▶ Run id: ${runId}`);
 
-  // Marca host_name + pid + heartbeat inicial en el run
   await (supabase.schema('otter_raw' as any) as any)
     .from('otter_scrape_runs')
     .update({
@@ -532,19 +450,12 @@ async function main() {
     .eq('run_id', runId);
   lastHeartbeatAt = Date.now();
 
-  browserRef = await chromium.launch({ headless: true });
-  contextRef = await browserRef.newContext({ viewport: { width: 1280, height: 800 }, locale: 'es-EC' });
-  pageRef = await contextRef.newPage();
-
-  // Login + capturar templates iniciales
-  await login(pageRef);
-  await captureBothTemplates(pageRef);
-
-  // Loop infinito (controlado por shuttingDown)
+  await bootstrapBrowser();
   await pollLoop(runId);
 }
 
-// ─── Crash hooks: nunca dejar el run en 'running' tras una muerte inesperada ─
+// ─── Crash hooks ────────────────────────────────────────────────────────────
+
 async function emergencyShutdown(reason: string, exitCode: number) {
   if (shuttingDown) return;
   shuttingDown = true;
@@ -558,10 +469,10 @@ async function emergencyShutdown(reason: string, exitCode: number) {
 
 process.on('SIGINT',  () => emergencyShutdown('SIGINT',  0));
 process.on('SIGTERM', () => emergencyShutdown('SIGTERM', 0));
-process.on('SIGHUP',  () => emergencyShutdown('SIGHUP',  2)); // 2 = launchd debe reiniciar
-process.on('uncaughtException',  (e: Error) => emergencyShutdown(`uncaughtException: ${e.message?.slice(0,300)}`, 2));
-process.on('unhandledRejection', (e: any)   => emergencyShutdown(`unhandledRejection: ${String(e)?.slice(0,300)}`, 2));
+process.on('SIGHUP',  () => emergencyShutdown('SIGHUP',  2));
+process.on('uncaughtException',  (e: Error) => emergencyShutdown(`uncaughtException: ${e.message?.slice(0, 300)}`, 2));
+process.on('unhandledRejection', (e: any)   => emergencyShutdown(`unhandledRejection: ${String(e)?.slice(0, 300)}`, 2));
 
 main().catch(async (e: any) => {
-  await emergencyShutdown(`main() rechazó: ${e?.message?.slice(0,300) || String(e)}`, 2);
+  await emergencyShutdown(`main() rechazó: ${e?.message?.slice(0, 300) || String(e)}`, 2);
 });

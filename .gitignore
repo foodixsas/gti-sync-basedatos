@@ -4,3 +4,15 @@ dist/
 tmp-downloads/
 *.log
 *.xls
+
+# Otter session state (contienen JWT + cookies — NUNCA commitear)
+.otter-storage-state.json
+.otter-template-cache.json
+.otter-fingerprints.json
+
+# PedidosYa session state
+pedidosya-auth.json
+pedidosya-templates.json
+
+# macOS
+.DS_Store

@@ -1,0 +1,108 @@
+name: Otter cloud polling safety net
+
+# Redundancia para el polling local. Corre cada 15 min en GH Actions con
+# liveness check + concurrency lock. Reduce gap máximo de 6h (workflow diario)
+# a ~20 min si el Mac está caído.
+#
+# Comportamiento:
+# - Si el polling local insertó en los últimos 20 min → skip (sano, no abrir 2da sesión)
+# - Si lleva > 20 min sin inserts → corre recover-otter-gap + recover-otter-details
+# - Concurrency lock: si una corrida sigue activa, la siguiente espera (NO se cancela)
+#   para nunca abrir dos sesiones Otter simultáneas.
+
+on:
+  schedule:
+    - cron: '*/15 * * * *' # cada 15 min
+  workflow_dispatch:
+    inputs:
+      force:
+        description: 'Forzar corrida aunque polling local esté sano'
+        type: boolean
+        required: false
+        default: false
+
+concurrency:
+  group: otter-cloud-polling
+  cancel-in-progress: false
+
+jobs:
+  safety-net:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12 # < 15 min entre runs para evitar overlap
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm install --no-fund --no-audit
+
+      - name: Liveness check
+        id: liveness
+        env:
+          SUPABASE_URL:              ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          FORCE_RUN:                 ${{ inputs.force || 'false' }}
+        run: |
+          if [ "$FORCE_RUN" = "true" ]; then
+            echo "Force run → skip liveness check"
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          RESP=$(curl -s "$SUPABASE_URL/rest/v1/v_polling_health?select=minutos_sin_inserts,health_status" \
+            -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" \
+            -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
+            -H "Accept-Profile: otter_raw")
+          echo "Health response: $RESP"
+          MIN=$(echo "$RESP" | python3 -c 'import json,sys; d=json.load(sys.stdin); print(float(d[0]["minutos_sin_inserts"]) if d else 9999)' 2>/dev/null || echo 9999)
+          STATUS=$(echo "$RESP" | python3 -c 'import json,sys; d=json.load(sys.stdin); print(d[0]["health_status"] if d else "UNKNOWN")' 2>/dev/null || echo UNKNOWN)
+          echo "min_sin_inserts=$MIN, health_status=$STATUS"
+          # Umbral: 20 min. Más agresivo que el daily (30 min) porque corremos cada 15.
+          if awk -v m="$MIN" 'BEGIN{exit !(m<20)}'; then
+            echo "✅ Polling local sano (gap=${MIN}min < 20min) → no corro recovery"
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "⚠ Polling parece caído (gap=${MIN}min) → corro recovery"
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Install Playwright Chromium
+        if: steps.liveness.outputs.skip != 'true'
+        run: npx playwright install chromium --with-deps
+
+      - name: Recover headers (gap fill)
+        if: steps.liveness.outputs.skip != 'true'
+        env:
+          OTTER_EMAIL:               ${{ secrets.OTTER_EMAIL }}
+          OTTER_PASSWORD:            ${{ secrets.OTTER_PASSWORD }}
+          SUPABASE_URL:              ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          NODE_OPTIONS: '--max-old-space-size=2048'
+        run: npx tsx src/scripts/recover-otter-gap.ts
+
+      - name: Recover details (items + clientes — ventana corta)
+        if: steps.liveness.outputs.skip != 'true'
+        env:
+          OTTER_EMAIL:               ${{ secrets.OTTER_EMAIL }}
+          OTTER_PASSWORD:            ${{ secrets.OTTER_PASSWORD }}
+          SUPABASE_URL:              ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          NODE_OPTIONS: '--max-old-space-size=2048'
+        run: |
+          # Ventana corta (2h) para que termine dentro del timeout de 12 min
+          FROM_TS=$(date -u -d '2 hours ago' +%Y-%m-%dT%H:%M:%S)
+          npx tsx src/scripts/recover-otter-details.ts "$FROM_TS"
+
+      - name: Health verification
+        if: always()
+        env:
+          SUPABASE_URL:              ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          curl -s "$SUPABASE_URL/rest/v1/v_polling_health?select=health_status,minutos_sin_inserts,last_ts_pedido" \
+            -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" \
+            -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
+            -H "Accept-Profile: otter_raw"

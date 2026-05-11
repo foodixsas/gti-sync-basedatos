@@ -24,6 +24,7 @@
     "polling-otter-live": "NODE_OPTIONS='--max-old-space-size=2048' tsx --env-file=.env.local src/scripts/polling-otter-live.ts",
     "recover-otter-gap": "NODE_OPTIONS='--max-old-space-size=2048' tsx --env-file=.env.local src/scripts/recover-otter-gap.ts",
     "recover-otter-details": "NODE_OPTIONS='--max-old-space-size=2048' tsx --env-file=.env.local src/scripts/recover-otter-details.ts",
+    "check-otter-alert": "tsx --env-file=.env.local src/scripts/check-otter-alert.ts",
     "explore-pedidosya": "tsx --env-file=.env.local src/scripts/explore-pedidosya.ts",
     "explore-pedidosya-stealth": "tsx --env-file=.env.local src/scripts/explore-pedidosya-stealth.ts",
     "explore-pedidosya-press-hold": "tsx --env-file=.env.local src/scripts/explore-pedidosya-press-hold.ts",
