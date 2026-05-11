@@ -8,8 +8,10 @@ const SUPABASE_URL = process.env.SUPABASE_URL!;
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 const TWILIO_SID = process.env.TWILIO_ACCOUNT_SID!;
 const TWILIO_TOKEN = process.env.TWILIO_AUTH_TOKEN!;
-const TWILIO_FROM = process.env.TWILIO_WHATSAPP_FROM!; // ej "whatsapp:+14155238886"
+const TWILIO_FROM = process.env.TWILIO_WHATSAPP_FROM!; // ej "whatsapp:+593994942631" (FOODIX prod)
 const ALERT_TO = process.env.ALERT_WHATSAPP_TO!;       // ej "whatsapp:+5939XXXXXXXX"
+// Template aprobado por Meta para alertas. Renderiza: 🚨 {{1}} | 📍 Tienda: {{2}} | ⚠️ Severidad: {{3}} | 🕐 Fecha: {{4}} | 💬 Comentario: {{5}}
+const TWILIO_TEMPLATE_SID = process.env.TWILIO_TEMPLATE_SID || 'HXa258d95503bd7f60f2537e85d6fd250c';
 
 const COOLDOWN_MIN = Number(process.env.ALERT_COOLDOWN_MIN || 60);
 
@@ -24,13 +26,33 @@ function log(level: 'info' | 'warn' | 'error', msg: string): void {
   console.log(`[${ts()}] ${level.toUpperCase()}: ${msg}`);
 }
 
-async function sendWhatsApp(message: string): Promise<{ ok: boolean; sid?: string; error?: string; raw?: any }> {
+interface AlertContent {
+  titulo: string;       // {{1}} ej: "Otter polling DETENIDO"
+  lugar: string;        // {{2}} ej: "Servidor FOODIX (mac local)"
+  severidad: string;    // {{3}} ej: "Crítica" | "Anomalía"
+  fecha: string;        // {{4}} ej: "11/05/2026 16:10:00"
+  detalle: string;      // {{5}} texto largo libre
+}
+
+async function sendWhatsApp(content: AlertContent): Promise<{ ok: boolean; sid?: string; error?: string; raw?: any }> {
   if (!TWILIO_SID || !TWILIO_TOKEN || !TWILIO_FROM || !ALERT_TO) {
     return { ok: false, error: 'Faltan creds Twilio o ALERT_WHATSAPP_TO' };
   }
   const url = `https://api.twilio.com/2010-04-01/Accounts/${TWILIO_SID}/Messages.json`;
   const auth = Buffer.from(`${TWILIO_SID}:${TWILIO_TOKEN}`).toString('base64');
-  const body = new URLSearchParams({ From: TWILIO_FROM, To: ALERT_TO, Body: message });
+  const contentVariables = JSON.stringify({
+    '1': content.titulo.slice(0, 200),
+    '2': content.lugar.slice(0, 200),
+    '3': content.severidad.slice(0, 100),
+    '4': content.fecha.slice(0, 100),
+    '5': content.detalle.slice(0, 500),
+  });
+  const body = new URLSearchParams({
+    From: TWILIO_FROM,
+    To: ALERT_TO,
+    ContentSid: TWILIO_TEMPLATE_SID,
+    ContentVariables: contentVariables,
+  });
   try {
     const resp = await fetch(url, {
       method: 'POST',
@@ -45,6 +67,17 @@ async function sendWhatsApp(message: string): Promise<{ ok: boolean; sid?: strin
   }
 }
 
+function fechaEC(): string {
+  // Formato dd/mm/yyyy HH:MM:SS en timezone Ecuador
+  const d = new Date();
+  const opts: Intl.DateTimeFormatOptions = {
+    timeZone: 'America/Guayaquil',
+    day: '2-digit', month: '2-digit', year: 'numeric',
+    hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false,
+  };
+  return new Intl.DateTimeFormat('es-EC', opts).format(d).replace(',', '');
+}
+
 async function main() {
   if (!SUPABASE_URL || !SUPABASE_KEY) {
     log('error', 'Faltan creds Supabase');
@@ -56,18 +89,21 @@ async function main() {
   // Útil para validar que las creds Twilio + número destino funcionan.
   if (process.env.SEND_TEST === 'true') {
     log('info', '🧪 SEND_TEST=true → enviando WhatsApp de prueba');
-    const testMsg = `✅ *Prueba de alerta Otter*\n` +
-                    `Si recibís este mensaje, la cadena Supabase → GH Actions → Twilio funciona correctamente.\n` +
-                    `Las alertas reales solo dispararán cuando v_polling_health reporte *DETENIDO* o *COLGADO*.\n` +
-                    `Enviado: ${new Date().toISOString()}`;
-    const result = await sendWhatsApp(testMsg);
+    const testContent: AlertContent = {
+      titulo: 'PRUEBA - Otter alert system',
+      lugar: 'Servidor FOODIX',
+      severidad: 'Test',
+      fecha: fechaEC(),
+      detalle: 'Si recibes este mensaje, la cadena Supabase → GH Actions → Twilio Production con template aprobado funciona correctamente. Las alertas reales solo dispararán cuando v_polling_health reporte DETENIDO o COLGADO.',
+    };
+    const result = await sendWhatsApp(testContent);
     log(result.ok ? 'info' : 'error', `Twilio: ${result.ok ? 'OK sid=' + result.sid : 'FAIL ' + result.error}`);
     await (supabase.schema('otter_raw' as any) as any)
       .from('alert_log')
       .insert({
         alert_type: 'test',
         metric_value: 0,
-        message: testMsg,
+        message: JSON.stringify(testContent),
         channel: 'whatsapp',
         delivery_status: result.ok ? `twilio_sid:${result.sid}` : `failed:${result.error?.slice(0, 200)}`,
         raw_response: result.raw,
@@ -87,8 +123,13 @@ async function main() {
   if (hErr || !health) {
     log('error', `[health.read] ${hErr?.message || 'sin data'}`);
     // El fallo de leer la vista TAMBIÉN merece alerta (algo grave)
-    const fallback = `🚨 No se pudo leer v_polling_health: ${hErr?.message || 'desconocido'}. Revisar Supabase.`;
-    await sendWhatsApp(fallback);
+    await sendWhatsApp({
+      titulo: 'Otter — Falla leyendo health view',
+      lugar: 'Supabase',
+      severidad: 'Crítica',
+      fecha: fechaEC(),
+      detalle: `No se pudo consultar v_polling_health: ${hErr?.message || 'desconocido'}. El sistema de alertas no puede operar hasta que se resuelva.`,
+    });
     process.exit(1);
   }
 
@@ -119,22 +160,23 @@ async function main() {
     return;
   }
 
-  const msg = `🚨 *Otter polling ${polling}*\n` +
-              `Sin heartbeat: ${minutosHb.toFixed(0)}min\n` +
-              `Sin inserts: ${minutos.toFixed(0)}min\n` +
-              `Último pedido: ${health.last_ts_pedido || 'desconocido'}\n` +
-              `Host: ${health.host_name || '?'} pid=${health.process_pid || '?'}\n` +
-              `Revisar launchd Mac o GH Actions safety net.`;
+  const content: AlertContent = {
+    titulo: `Otter polling ${polling}`,
+    lugar: `${health.host_name || 'mac local'} pid=${health.process_pid || '?'}`,
+    severidad: 'Crítica',
+    fecha: fechaEC(),
+    detalle: `Sin heartbeat ${minutosHb.toFixed(0)} min. Sin inserts ${minutos.toFixed(0)} min. Último pedido: ${health.last_ts_pedido || 'desconocido'}. Revisar launchd en Mac o disparar GH Actions safety net.`,
+  };
 
   log('warn', `🚨 DISPARANDO ALERTA: status=${polling}`);
-  const result = await sendWhatsApp(msg);
+  const result = await sendWhatsApp(content);
 
   await (supabase.schema('otter_raw' as any) as any)
     .from('alert_log')
     .insert({
       alert_type: `polling_${polling.toLowerCase()}`,
       metric_value: minutosHb,
-      message: msg,
+      message: JSON.stringify(content),
       channel: 'whatsapp',
       delivery_status: result.ok ? `twilio_sid:${result.sid}` : `failed:${result.error?.slice(0, 200)}`,
       raw_response: result.raw,
@@ -183,21 +225,23 @@ async function checkAnomalyVolumen(supabase: any) {
     return;
   }
 
-  const msg = `📉 *Otter — volumen anómalo*\n` +
-              `Última hora: *${anom.pedidos_actuales}* pedidos\n` +
-              `Esperado (media 4 sem misma hora/día): *${anom.pedidos_esperados}*\n` +
-              `Solo ${anom.pct_vs_esperado}% de lo esperado.\n` +
-              `Polling puede correr pero algo bloquea la ingesta.`;
+  const content: AlertContent = {
+    titulo: 'Otter — volumen anómalo',
+    lugar: 'Pipeline ingesta',
+    severidad: 'Anomalía',
+    fecha: fechaEC(),
+    detalle: `Última hora: ${anom.pedidos_actuales} pedidos vs media histórica ${anom.pedidos_esperados} (solo ${anom.pct_vs_esperado}% de lo esperado). Polling puede estar corriendo pero algo bloquea la ingesta. Revisar canales Otter / filtros.`,
+  };
 
   log('warn', `📉 DISPARANDO ALERTA ANOMALÍA: ${anom.pct_vs_esperado}% de esperado`);
-  const result = await sendWhatsApp(msg);
+  const result = await sendWhatsApp(content);
 
   await (supabase.schema('otter_raw' as any) as any)
     .from('alert_log')
     .insert({
       alert_type: 'anomaly_low_volume',
       metric_value: anom.pct_vs_esperado,
-      message: msg,
+      message: JSON.stringify(content),
       channel: 'whatsapp',
       delivery_status: result.ok ? `twilio_sid:${result.sid}` : `failed:${result.error?.slice(0, 200)}`,
       raw_response: result.raw,
