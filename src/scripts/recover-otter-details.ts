@@ -8,15 +8,11 @@ import {
   DETAILS_ENDPOINT,
   log,
   loadStorageState,
-  saveStorageState,
-  loginOtter,
-  captureListTemplate,
+  captureListTemplateResilient,
   buildDetailsTemplate,
   buildHeaders,
   parseCustomerNote,
   money,
-  detectLoginRequired,
-  ORDERS_TODAY_URL,
   type Template,
 } from '../lib/otter-shared';
 
@@ -31,20 +27,8 @@ const FROM_TS = process.env.FROM_TS || process.argv[2] || '2026-04-30';
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { persistSession: false } });
 
-async function ensureLoggedSession(page: Page, context: any): Promise<void> {
-  await page.goto(ORDERS_TODAY_URL, { waitUntil: 'domcontentloaded', timeout: 60_000 });
-  await page.waitForTimeout(2000);
-  if (await detectLoginRequired(page)) {
-    log('info', '▶ Sesión inválida — login fresh');
-    await loginOtter(page, EMAIL, PASSWORD);
-    await saveStorageState(context);
-  } else {
-    log('info', '✓ Sesión persistida válida');
-  }
-}
-
-async function captureFreshDetailsTemplate(page: Page): Promise<Template> {
-  const list = await captureListTemplate(page);
+async function captureFreshDetailsTemplate(page: Page, context: any): Promise<Template> {
+  const list = await captureListTemplateResilient(page, context, EMAIL, PASSWORD);
   return buildDetailsTemplate(list);
 }
 
@@ -199,8 +183,7 @@ async function main() {
   const t0 = Date.now();
 
   try {
-    await ensureLoggedSession(page, context);
-    let template = await captureFreshDetailsTemplate(page);
+    let template = await captureFreshDetailsTemplate(page, context);
 
     while (true) {
       const { data: pending } = await (supabase.schema('otter_raw' as any) as any)
@@ -244,7 +227,7 @@ async function main() {
         }
         if (processed % REFRESH_AFTER_N_REQS === 0) {
           log('info', '🔄 Refrescando JWT preventivamente...');
-          try { template = await captureFreshDetailsTemplate(page); } catch (e: any) {
+          try { template = await captureFreshDetailsTemplate(page, context); } catch (e: any) {
             log('warn', `  refresh failed: ${e.message?.slice(0, 120)}`);
           }
         }

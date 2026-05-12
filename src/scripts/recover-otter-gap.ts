@@ -9,15 +9,11 @@ import {
   LIST_ENDPOINT,
   log,
   loadStorageState,
-  saveStorageState,
-  loginOtter,
-  captureListTemplate,
+  captureListTemplateResilient,
   buildHeaders,
   rowToObject,
   toIso,
   withRetry,
-  detectLoginRequired,
-  ORDERS_TODAY_URL,
 } from '../lib/otter-shared';
 
 const EMAIL = process.env.OTTER_EMAIL!;
@@ -30,17 +26,6 @@ const ARG_TO   = process.env.RECOVER_TO   || process.argv[3] || null;
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { persistSession: false } });
 
-async function ensureLoggedSession(page: Page, context: any): Promise<void> {
-  await page.goto(ORDERS_TODAY_URL, { waitUntil: 'domcontentloaded', timeout: 60_000 });
-  await page.waitForTimeout(2000);
-  if (await detectLoginRequired(page)) {
-    log('info', '▶ Sesión inválida — login fresh');
-    await loginOtter(page, EMAIL, PASSWORD);
-    await saveStorageState(context);
-  } else {
-    log('info', '✓ Sesión persistida válida');
-  }
-}
 
 async function main() {
   if (!EMAIL || !PASSWORD) { console.error('❌ Faltan creds Otter'); process.exit(1); }
@@ -90,8 +75,7 @@ async function main() {
 
   let inserted = 0;
   try {
-    await ensureLoggedSession(page, context);
-    const template = await captureListTemplate(page);
+    const template = await captureListTemplateResilient(page, context, EMAIL, PASSWORD);
 
     const body = JSON.parse(JSON.stringify(template.requestBody));
     body.limit = 5000;

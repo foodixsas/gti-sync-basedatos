@@ -251,6 +251,15 @@ export interface Template {
   requestHeaders: Record<string, string>;
 }
 
+// Error específico para sesión zombie (JWT invalidado server-side sin redirect a /login).
+// Señaliza que se debe invalidar storage_state y re-logear, NO caer al cache.
+export class SessionExpiredError extends Error {
+  constructor(msg: string) {
+    super(msg);
+    this.name = 'SessionExpiredError';
+  }
+}
+
 // ─── Logging compartido ─────────────────────────────────────────────────────
 
 function ts(): string { return new Date().toISOString().replace('T', ' ').slice(0, 19); }
@@ -397,8 +406,20 @@ export async function loginOtter(page: Page, email: string, password: string): P
 export async function captureListTemplate(page: Page): Promise<Template> {
   log('info', '▶ Capturando LIST template...');
   const candidates: Template[] = [];
+
+  // Diagnóstico A: contar 401/403 a tryotter durante la captura.
+  // No afecta la lógica de captura — solo enriquece el mensaje de error si falla.
+  let unauthorizedCount = 0;
+  const unauthorizedUrls: string[] = [];
+
   const handler = async (resp: Response) => {
-    if (!resp.url().includes('/api/analytics/table/order_performance_cullinan')) return;
+    const url = resp.url();
+    const status = resp.status();
+    if (url.includes('tryotter.com') && (status === 401 || status === 403)) {
+      unauthorizedCount++;
+      if (unauthorizedUrls.length < 5) unauthorizedUrls.push(`${status} ${url.split('?')[0].slice(0, 100)}`);
+    }
+    if (!url.includes('/api/analytics/table/order_performance_cullinan')) return;
     if (resp.request().method() !== 'POST') return;
     const post = resp.request().postData();
     if (!post) return;
@@ -424,9 +445,24 @@ export async function captureListTemplate(page: Page): Promise<Template> {
     const cols = c.requestBody?.columns || [];
     return cols.some((col: any) => col.key === 'external_order_display_id') && c.requestBody?.paginate === true;
   });
-  if (!winner) throw new Error('[captureListTemplate] No se capturó template del listado');
-  log('info', '✓ LIST template capturado');
-  return winner;
+
+  if (winner) {
+    if (unauthorizedCount > 0) {
+      log('warn', `[capture] winner OK pese a ${unauthorizedCount} 401/403 en endpoints auxiliares`);
+    }
+    log('info', '✓ LIST template capturado');
+    return winner;
+  }
+
+  // Si hubo 401s Y no hay winner: señal inequívoca de zombie session.
+  // SessionExpiredError indica al caller que debe invalidar storage y re-logear.
+  if (unauthorizedCount > 0) {
+    throw new SessionExpiredError(
+      `[captureListTemplate] Zombie session: ${unauthorizedCount} 401/403 sin winner. URLs: ${unauthorizedUrls.join(' | ')}`
+    );
+  }
+
+  throw new Error('[captureListTemplate] No se capturó template del listado');
 }
 
 // ─── Construir Details template a partir del LIST (sin click) ───────────────
@@ -485,20 +521,26 @@ export async function captureBothTemplatesResilient(
   email: string,
   password: string,
   depth: number = 0,
+  hadStorageOnEntry: boolean = false,
 ): Promise<{ list: Template; details: Template }> {
   if (depth >= 2) throw new Error('[capture.depth] Re-login loop detectado (depth>=2)');
 
-  // Navegación inicial para ver si la sesión está viva
+  // Determinar si hay storage_state cargado ANTES de intentar captura.
+  // Si había storage y la captura falla → asumir zombie y re-logear (Enfoque C).
+  const storageExists = fs.existsSync(STORAGE_STATE_PATH);
+  const hasStoragePrevio = hadStorageOnEntry || storageExists;
+
+  // Navegación inicial para ver si la sesión está viva (señales DOM clásicas)
   await page.goto(ORDERS_TODAY_URL, { waitUntil: 'domcontentloaded', timeout: 60_000 });
   await page.waitForLoadState('load', { timeout: 30_000 }).catch(() => {});
   await page.waitForTimeout(2000);
 
   if (await detectLoginRequired(page)) {
-    log('warn', `🔒 Sesión expirada (depth=${depth}) — re-login + retry`);
+    log('warn', `🔒 Sesión expirada (depth=${depth}, DOM) — re-login + retry`);
     clearStorageState();
     await loginOtter(page, email, password);
     await saveStorageState(context);
-    return captureBothTemplatesResilient(page, context, email, password, depth + 1);
+    return captureBothTemplatesResilient(page, context, email, password, depth + 1, false);
   }
 
   try {
@@ -507,7 +549,22 @@ export async function captureBothTemplatesResilient(
     saveTemplateCache(list, details);
     return { list, details };
   } catch (e: any) {
-    log('warn', `[capture.fallback] LIST capture falló: ${e.message?.slice(0, 200)}`);
+    const isZombie = e instanceof SessionExpiredError;
+    const isZombieByStorage = hasStoragePrevio && !(e instanceof Error && e.message.includes('net::ERR'));
+
+    if (isZombie || isZombieByStorage) {
+      // Enfoque C: captura falló con storage previo → asumir zombie, re-logear.
+      // Enfoque A: SessionExpiredError confirma explícitamente via 401s observados.
+      const reason = isZombie ? 'zombie session (401s detectados)' : 'storage previo + captura fallida';
+      log('warn', `🔒 Re-login forzado (${reason}, depth=${depth}): ${e.message?.slice(0, 150)}`);
+      clearStorageState();
+      await loginOtter(page, email, password);
+      await saveStorageState(context);
+      return captureBothTemplatesResilient(page, context, email, password, depth + 1, false);
+    }
+
+    // Error genuino (red caída, DNS, timeout de red sin storage previo): caer al cache.
+    log('warn', `[capture.fallback] LIST capture falló (sin storage previo): ${e.message?.slice(0, 200)}`);
     const cached = loadCachedTemplates();
     if (!cached) throw new Error(`[capture] Sin captura ni cache disponible: ${e.message}`);
     log('warn', '⚠️ Usando templates desde cache (próximo refresh re-intenta)');
@@ -585,6 +642,51 @@ export function parseCustomerNote(note: string | null | undefined): {
 }
 
 // ─── Retry con backoff exponencial ──────────────────────────────────────────
+
+// ─── captureListTemplateResilient — para scripts que solo necesitan LIST ────
+// Aplica el mismo enfoque A+C que captureBothTemplatesResilient pero solo
+// para el template de listado (recover-otter-gap.ts, etc.).
+
+export async function captureListTemplateResilient(
+  page: Page,
+  context: BrowserContext,
+  email: string,
+  password: string,
+  depth: number = 0,
+): Promise<Template> {
+  if (depth >= 2) throw new Error('[captureList.depth] Re-login loop detectado (depth>=2)');
+
+  const storageExists = fs.existsSync(STORAGE_STATE_PATH);
+
+  await page.goto(ORDERS_TODAY_URL, { waitUntil: 'domcontentloaded', timeout: 60_000 });
+  await page.waitForLoadState('load', { timeout: 30_000 }).catch(() => {});
+  await page.waitForTimeout(2000);
+
+  if (await detectLoginRequired(page)) {
+    log('warn', `🔒 Sesión expirada (depth=${depth}, DOM) — re-login + retry`);
+    clearStorageState();
+    await loginOtter(page, email, password);
+    await saveStorageState(context);
+    return captureListTemplateResilient(page, context, email, password, depth + 1);
+  }
+
+  try {
+    return await captureListTemplate(page);
+  } catch (e: any) {
+    const isZombie = e instanceof SessionExpiredError;
+    const isZombieByStorage = storageExists && !(e instanceof Error && e.message.includes('net::ERR'));
+
+    if (isZombie || isZombieByStorage) {
+      const reason = isZombie ? 'zombie (401s detectados)' : 'storage previo + captura fallida';
+      log('warn', `🔒 Re-login forzado en captureList (${reason}, depth=${depth})`);
+      clearStorageState();
+      await loginOtter(page, email, password);
+      await saveStorageState(context);
+      return captureListTemplateResilient(page, context, email, password, depth + 1);
+    }
+    throw e;
+  }
+}
 
 export interface RetryOpts {
   attempts?: number;
