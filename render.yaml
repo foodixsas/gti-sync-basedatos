@@ -1,0 +1,20 @@
+services:
+  - type: worker
+    name: otter-polling-foodix
+    runtime: docker
+    region: oregon
+    plan: starter
+    branch: main
+    dockerfilePath: ./Dockerfile.otter-worker
+    autoDeploy: true
+    envVars:
+      - key: OTTER_EMAIL
+        sync: false
+      - key: OTTER_PASSWORD
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: NODE_ENV
+        value: production

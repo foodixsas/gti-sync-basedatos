@@ -1,0 +1,15 @@
+FROM mcr.microsoft.com/playwright:v1.52.0-noble
+
+WORKDIR /app
+
+COPY package*.json ./
+RUN npm ci --omit=dev --no-audit --no-fund
+
+COPY tsconfig.json ./
+COPY src/lib/ ./src/lib/
+COPY src/scripts/polling-otter-live.ts ./src/scripts/
+
+ENV NODE_OPTIONS="--max-old-space-size=512"
+ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
+
+CMD ["npx", "tsx", "src/scripts/polling-otter-live.ts"]
