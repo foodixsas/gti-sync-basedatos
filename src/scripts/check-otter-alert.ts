@@ -14,7 +14,7 @@ const ALERT_TO     = process.env.ALERT_WHATSAPP_TO!;
 const TWILIO_TEMPLATE_SID = process.env.TWILIO_TEMPLATE_SID || 'HXa258d95503bd7f60f2537e85d6fd250c';
 
 const COOLDOWN_FALLO_MIN   = Number(process.env.ALERT_COOLDOWN_MIN || 60);
-const UMBRAL_FALLO_MIN     = 30;   // gap máximo tolerable entre runs del cron
+const UMBRAL_FALLO_MIN     = 120;  // gap máximo tolerable — GH Actions cron real: 90-150 min
 const COOLDOWN_RESUMEN_MIN = 55;   // envía resumen max 1 vez/hora
 
 // Horario operativo de Chios Delivery (Ecuador)
@@ -107,7 +107,7 @@ async function hasCooldown(supabase: any, type: string, cooldownMin: number): Pr
 // Verifica cuándo fue el último run de GH Actions que insertó datos.
 // Si el gap supera UMBRAL_FALLO_MIN → alerta crítica.
 
-async function checkCronHealth(supabase: any): Promise<void> {
+async function checkCronHealth(supabase: any): Promise<boolean> {
   log('info', `▶ Check cron GH Actions (umbral=${UMBRAL_FALLO_MIN}min)`);
 
   const { data: lastRun, error } = await (supabase.schema('otter_raw' as any) as any)
@@ -127,7 +127,7 @@ async function checkCronHealth(supabase: any): Promise<void> {
 
   if (!lastRun) {
     log('warn', '[cron.health] Sin runs de backfill históricos — sistema nuevo o error');
-    return;
+    return false;
   }
 
   const minutos = (Date.now() - new Date(lastRun.ended_at).getTime()) / 60_000;
@@ -135,13 +135,13 @@ async function checkCronHealth(supabase: any): Promise<void> {
 
   if (minutos <= UMBRAL_FALLO_MIN) {
     log('info', `✓ Cron sano (${minutos.toFixed(0)}min ≤ umbral ${UMBRAL_FALLO_MIN}min)`);
-    return;
+    return false;
   }
 
   // Cooldown para no spam
   if (await hasCooldown(supabase, 'cron_fallo', COOLDOWN_FALLO_MIN)) {
     log('info', `⏸ Alerta cron en cooldown (${COOLDOWN_FALLO_MIN}min). Skip.`);
-    return;
+    return true; // Sí hay fallo, aunque no alertemos de nuevo
   }
 
   const content: AlertContent = {
@@ -156,11 +156,10 @@ async function checkCronHealth(supabase: any): Promise<void> {
   const result = await sendWhatsApp(content);
   await logAlert(supabase, 'cron_fallo', minutos, content, result);
 
-  if (result.ok) {
-    log('info', `✓ WhatsApp enviado (sid=${result.sid})`);
-  } else {
-    log('error', `❌ Twilio falló: ${result.error}`);
-  }
+  if (result.ok) log('info', `✓ WhatsApp enviado (sid=${result.sid})`);
+  else log('error', `❌ Twilio falló: ${result.error}`);
+
+  return true;
 }
 
 // ─── 2. Resumen horario ──────────────────────────────────────────────────────
@@ -316,16 +315,23 @@ async function main() {
     return;
   }
 
-  // 1. Fallo del cron de GH Actions (principal, siempre verificar)
-  await checkCronHealth(supabase);
+  // 1. Fallo del cron (principal — retorna true si disparó alerta)
+  const cronFallo = await checkCronHealth(supabase);
 
-  // 2. Resumen horario (una vez por hora durante horario operativo)
-  await sendHourlySummary(supabase);
+  // 2. Resumen horario: siempre, pero omitir si el cron está caído
+  //    (el resumen de "0 pedidos" cuando hay fallo conocido es ruido)
+  if (!cronFallo) {
+    await sendHourlySummary(supabase);
+  } else {
+    log('info', '↳ Skip resumen horario (cron en fallo, datos no confiables)');
+  }
 
-  // 3. Anomalía de volumen (solo en horario operativo cuando hay histórico)
+  // 3. Anomalía: solo en horario operativo y si el cron está sano
   const hora = horaEC();
-  if (hora >= HORA_APERTURA && hora <= HORA_CIERRE) {
+  if (!cronFallo && hora >= HORA_APERTURA && hora <= HORA_CIERRE) {
     await checkAnomalyVolumen(supabase);
+  } else if (cronFallo) {
+    log('info', '↳ Skip anomalía (cron en fallo — misma causa raíz)');
   } else {
     log('info', `↳ Fuera de horario (${hora}:xx EC) — skip anomalía`);
   }
