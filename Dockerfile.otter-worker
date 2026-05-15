@@ -12,4 +12,4 @@ COPY src/scripts/polling-otter-live.ts ./src/scripts/
 ENV NODE_OPTIONS="--max-old-space-size=512"
 ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
 
-CMD ["npx", "tsx", "src/scripts/polling-otter-live.ts"]
+CMD ["./node_modules/.bin/tsx", "src/scripts/polling-otter-live.ts"]
