@@ -16,9 +16,13 @@
  *   - pedidosya-auth.json (cookies)
  *   - pedidosya-templates.json (templates GraphQL/REST)
  */
-import { chromium, type Page, type Request } from 'playwright';
+import type { Page, Request } from 'playwright';
 import * as fs from 'fs';
 import * as path from 'path';
+import { getStealthChromium, trySkipLogin, saveSession } from '../lib/pedidosya-session';
+
+// stealth + plugin para ocultar navigator.webdriver, fixear WebGL fingerprint, etc.
+const chromium = getStealthChromium();
 
 const BROWSER_WSS = process.env.BRIGHTDATA_BROWSER_WSS!;
 const EMAIL = process.env.PEDIDOSYA_EMAIL!;
@@ -272,13 +276,16 @@ async function main() {
   });
 
   try {
-    // 1. LOGIN INMEDIATO
+    // 1. LOGIN FRESH SIEMPRE
+    // Hallazgo 2026-05-14: trySkipLogin retorna TRUE pero la sesión se INVALIDA
+    // en la siguiente navegación. Pattern observado: isSessionValid pasa → goto
+    // /finance redirige a /login. La sesión "tibia" de BrightData es frágil.
+    // Conclusión empírica: NO confiar en skip, hacer login fresh siempre.
     await doLogin(page);
 
-    // 2. Guardar storageState recién creado
-    const state = await ctx.storageState();
-    fs.writeFileSync(AUTH_FILE, JSON.stringify(state, null, 2));
-    console.log(`✓ storageState guardado (${state.cookies.length} cookies)\n`);
+    // 2. Guardar storageState para auditoría (no para reuso vía addCookies)
+    await saveSession(ctx, AUTH_FILE);
+    console.log();
 
     // 3. Capturar templates en MISMA sesión
     for (const section of SECTIONS) {

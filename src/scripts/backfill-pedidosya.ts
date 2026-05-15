@@ -12,7 +12,11 @@
 // CLI: npm run backfill-pedidosya -- --from=2025-01-01 --to=2026-05-02 --phase=all
 //   --phase ∈ { all, payouts, invoices, orders, link }
 
-import { chromium, type Page } from 'playwright';
+import type { Page } from 'playwright';
+import { getStealthChromium, trySkipLogin, saveSession, AUTH_FILE_DEFAULT } from '../lib/pedidosya-session';
+
+// stealth plugin + skip-login si la sesión persistida sigue válida
+const chromium = getStealthChromium();
 import { createClient } from '@supabase/supabase-js';
 
 // ── Env ──────────────────────────────────────────────────────────────────────
@@ -121,7 +125,7 @@ const weekRanges = (from: string, to: string): { start: Date; end: Date }[] => {
 // ── Login + captura de templates LITERALES (queries + headers + url) ─────────
 type Template = { url: string; headers: Record<string, string>; body: any /* contiene query string completo */ };
 
-async function loginAndCaptureTemplates(page: Page): Promise<Record<string, Template>> {
+async function loginAndCaptureTemplates(page: Page, ctx?: import('playwright').BrowserContext): Promise<Record<string, Template>> {
   const templates: Record<string, Template> = {};
   const NEEDED = ['ListPayouts', 'getInvoiceDetails', 'ListOrders'];
 
@@ -138,15 +142,26 @@ async function loginAndCaptureTemplates(page: Page): Promise<Record<string, Temp
   });
 
   const closeModals = async () => {
-    for (const t of ['Ok','OK','Cancelar','NO, THANKS']) {
+    // 'Entendido' agregado 2026-05-14: PYA introdujo modal "Activa las notificaciones
+    // de tu navegador web" que bloquea SPA → queries GraphQL (ListPayouts/ListOrders)
+    // no se disparan → cron falla con 0 datos.
+    // Verificado visualmente en diagnose-finance-timeout: el modal aparece sobre /finance
+    // y bloquea page.evaluate(). bootstrap-and-capture.ts ya tenía 'Entendido'.
+    for (const t of ['Ok','OK','Cancelar','Cerrar','Close','NO, THANKS','Aceptar','Entendido']) {
       const b = page.locator(`button:has-text("${t}")`).first();
       if (await b.count() > 0 && await b.isVisible({ timeout: 400 }).catch(() => false)) { await b.click().catch(() => {}); await page.waitForTimeout(1500); }
     }
   };
 
-  // Login con reintentos + screenshot diagnóstico si falla
-  console.log('▶ Login...');
+  // 0. FORZADO login fresh. Hallazgo 2026-05-14: trySkipLogin retorna TRUE pero la
+  // sesión "tibia" de BrightData falla en navegaciones posteriores. Mejor pagar el
+  // costo del login fresh siempre (consistente con comportamiento histórico del cron).
   let loggedIn = false;
+  void ctx; // mantenido en firma para futuro uso de saveSession
+  void trySkipLogin; void AUTH_FILE_DEFAULT; // imports retenidos por backward compat
+
+  // Login con reintentos + screenshot diagnóstico si falla
+  if (!loggedIn) console.log('▶ Login...');
   for (let attempt = 1; attempt <= 3 && !loggedIn; attempt++) {
     if (attempt > 1) console.log(`   intento ${attempt}/3...`);
     await page.goto('https://portal-app.pedidosya.com/login', { waitUntil: 'domcontentloaded', timeout: 120_000 }).catch(() => {});
@@ -557,7 +572,9 @@ async function main() {
   const page = ctx.pages()[0] || await ctx.newPage();
 
   try {
-    const templates = await loginAndCaptureTemplates(page);
+    const templates = await loginAndCaptureTemplates(page, ctx);
+    // Persistir storageState para que próximas corridas puedan saltar login
+    await saveSession(ctx, AUTH_FILE_DEFAULT).catch(e => console.log(`⚠ saveSession: ${e.message}`));
 
     if (PHASE === 'all' || PHASE === 'payouts' || PHASE === 'invoices') {
       console.log(`\n▶ FASE 1+2: ListPayouts + getInvoiceDetails`);
