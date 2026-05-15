@@ -1,15 +1,23 @@
-FROM mcr.microsoft.com/playwright:v1.52.0-noble
+FROM node:22-slim
 
 WORKDIR /app
+
+# Dependencias del sistema para Chromium
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
 
 COPY package*.json ./
 RUN npm ci --no-audit --no-fund
 
+# Instalar Chromium para la versión exacta de playwright en node_modules
+RUN npx playwright install chromium --with-deps
+
 COPY tsconfig.json ./
-COPY src/lib/ ./src/lib/
+COPY src/lib ./src/lib/
 COPY src/scripts/polling-otter-live.ts ./src/scripts/
 
 ENV NODE_OPTIONS="--max-old-space-size=512"
-ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
+ENV PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=0
 
 CMD ["./node_modules/.bin/tsx", "src/scripts/polling-otter-live.ts"]
