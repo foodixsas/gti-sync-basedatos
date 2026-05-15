@@ -321,7 +321,12 @@ async function heartbeat(runId: string, ordersTodayCount: number) {
 // ─── Bootstrap del browser (storage_state si existe; login si no) ───────────
 
 async function bootstrapBrowser(): Promise<void> {
-  browserRef = await chromium.launch({ headless: true });
+  // En Docker/Render el sandbox de Chromium no está disponible — requiere --no-sandbox
+  const isDocker = process.env.NODE_ENV === 'production';
+  browserRef = await chromium.launch({
+    headless: true,
+    args: isDocker ? ['--no-sandbox', '--disable-setuid-sandbox'] : [],
+  });
   const storageState = loadStorageState();
   contextRef = await browserRef.newContext({
     viewport: { width: 1280, height: 800 },
