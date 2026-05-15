@@ -12,4 +12,14 @@ COPY src/scripts/polling-otter-live.ts ./src/scripts/
 ENV NODE_OPTIONS="--max-old-space-size=512"
 ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
 
-CMD ["./node_modules/.bin/tsx", "src/scripts/polling-otter-live.ts"]
+# Diagnóstico de startup: imprime estado de env vars y WebSocket antes de arrancar
+CMD ["/bin/sh", "-c", "\
+  echo '=== DIAG START ===' && \
+  echo 'Node:' $(node --version) && \
+  echo 'OTTER_EMAIL set:' $(test -n \"$OTTER_EMAIL\" && echo YES || echo NO) && \
+  echo 'SUPABASE_URL set:' $(test -n \"$SUPABASE_URL\" && echo YES || echo NO) && \
+  echo 'SUPABASE_KEY set:' $(test -n \"$SUPABASE_SERVICE_ROLE_KEY\" && echo YES || echo NO) && \
+  node -e \"console.log('WebSocket:', typeof WebSocket)\" && \
+  echo '=== DIAG END ===' && \
+  ./node_modules/.bin/tsx src/scripts/polling-otter-live.ts\
+"]
