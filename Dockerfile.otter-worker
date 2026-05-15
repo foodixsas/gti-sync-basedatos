@@ -17,7 +17,7 @@ COPY tsconfig.json ./
 COPY src/lib ./src/lib/
 COPY src/scripts/polling-otter-live.ts ./src/scripts/
 
-ENV NODE_OPTIONS="--max-old-space-size=512"
+ENV NODE_OPTIONS="--max-old-space-size=256"
 ENV PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=0
 
 CMD ["./node_modules/.bin/tsx", "src/scripts/polling-otter-live.ts"]
