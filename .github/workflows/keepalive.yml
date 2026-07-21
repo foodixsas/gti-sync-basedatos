@@ -1,0 +1,42 @@
+name: Keepalive (anti-desactivación por inactividad)
+
+# GitHub desactiva los workflows con cron tras 60 días sin commits en el repo.
+# Este workflow hace un commit liviano 2 veces al mes para resetear ese reloj,
+# y además reactiva cualquier workflow que GitHub haya alcanzado a apagar.
+# Caso que lo motivó: 15-jul-2026, todos los crons muertos (scrape costos,
+# safety nets de Otter, backfill PedidosYa) por 60 días sin commits.
+
+on:
+  schedule:
+    - cron: '0 8 1,15 * *' # día 1 y 15 de cada mes, 08:00 UTC (3am Ecuador)
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: write
+
+jobs:
+  keepalive:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Commit de actividad (resetea el reloj de 60 días)
+        run: |
+          date -u +"%Y-%m-%dT%H:%M:%SZ" > .github/keepalive.txt
+          git add .github/keepalive.txt
+          git -c user.name="chdaniel198888" -c user.email="gerencia@chiosburger.com" \
+            commit -m "chore: keepalive $(date -u +%F)" || exit 0
+          git push
+
+      - name: Reactivar workflows apagados por inactividad
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api "repos/${{ github.repository }}/actions/workflows" --paginate \
+            -q '.workflows[] | select(.state=="disabled_inactivity") | .id' |
+          while read -r id; do
+            gh api -X PUT "repos/${{ github.repository }}/actions/workflows/$id/enable"
+            echo "Reactivado workflow id=$id"
+          done
+          echo "Chequeo de workflows apagados completado"
