@@ -1,5 +1,5 @@
 // CHECK + ALERT — corre periódicamente (GH Actions cada 10 min).
-// 1. Alerta de fallo: si el cron de GH Actions lleva >30 min sin insertar datos.
+// 1. Alerta de fallo: si el recolector de Otter lleva >15 min sin heartbeat (caído/colgado).
 // 2. Resumen horario: una vez por hora, cuántos pedidos entraron + total del día.
 // 3. Anomalía de volumen: si los pedidos caen < 30% de la media histórica (horario OK).
 
@@ -14,7 +14,11 @@ const ALERT_TO     = process.env.ALERT_WHATSAPP_TO!;
 const TWILIO_TEMPLATE_SID = process.env.TWILIO_TEMPLATE_SID || 'HXa258d95503bd7f60f2537e85d6fd250c';
 
 const COOLDOWN_FALLO_MIN   = Number(process.env.ALERT_COOLDOWN_MIN || 60);
-const UMBRAL_FALLO_MIN     = 120;  // gap máximo tolerable — GH Actions cron real: 90-150 min
+const UMBRAL_HEARTBEAT_MIN = 15;   // min sin heartbeat del recolector antes de darlo por caído.
+                                   // El poller late cada ~20s; 15 min tolera reinicios y blips de red
+                                   // sin dejar pasar una caída real. NO usar frescura de pedidos como
+                                   // señal de salud: Chios Delivery es de bajo volumen (p95 del hueco
+                                   // real entre pedidos en horario operativo = 95 min).
 const COOLDOWN_RESUMEN_MIN = 55;   // envía resumen max 1 vez/hora
 
 // Horario operativo de Chios Delivery (Ecuador)
@@ -103,58 +107,91 @@ async function hasCooldown(supabase: any, type: string, cooldownMin: number): Pr
   return !!(data && data.length > 0);
 }
 
-// ─── 1. Alerta de fallo del cron ────────────────────────────────────────────
-// Verifica cuándo fue el último run de GH Actions que insertó datos.
-// Si el gap supera UMBRAL_FALLO_MIN → alerta crítica.
+// ─── 1. Alerta de liveness del recolector ────────────────────────────────────
+// Mide si el recolector está VIVO (heartbeat), no si entraron pedidos.
+//
+// Fuente única: otter_raw.v_polling_health — la misma vista que usa el liveness
+// check del workflow "Otter cloud polling safety net".
+//
+// ⚠ Dos trampas que esta función tuvo y NO debe volver a tener:
+//
+// 1. Medir "minutos desde el último backfill Recovery gap" (versión ≤ ago-2026).
+//    Ese run SOLO ocurre cuando el polling local está caído, así que con el
+//    sistema sano el contador crecía sin techo → 13 alertas Crítica falsas en
+//    5 días (03→06 ago 2026). Peor: el gate `if (!cronFallo)` del main hacía que
+//    cada falso positivo silenciara el resumen horario y la detección de anomalías.
+//
+// 2. Medir "minutos sin pedidos nuevos". Chios Delivery es de bajo volumen:
+//    el p95 del hueco real entre pedidos en horario operativo es 95 min, y el
+//    hueco nocturno (~14h) sigue vigente cuando abre la ventana a las 12:00 EC.
+//    "Sin pedidos" y "recolector roto" son indistinguibles con esa métrica.
+//    El bajo volumen ya lo cubre checkAnomalyVolumen(), que compara contra la
+//    media histórica de esa hora — que es la herramienta estadísticamente correcta.
 
 async function checkCronHealth(supabase: any): Promise<boolean> {
-  log('info', `▶ Check cron GH Actions (umbral=${UMBRAL_FALLO_MIN}min)`);
+  const hora = horaEC();
+  const enHorario = hora >= HORA_APERTURA && hora <= HORA_CIERRE;
 
-  const { data: lastRun, error } = await (supabase.schema('otter_raw' as any) as any)
-    .from('otter_scrape_runs')
-    .select('started_at, ended_at, status, pedidos_count, host_name')
-    .eq('run_type', 'backfill')
-    .eq('status', 'completed')
-    .like('notes', 'Recovery gap%')
-    .order('started_at', { ascending: false })
+  const { data: health, error } = await (supabase.schema('otter_raw' as any) as any)
+    .from('v_polling_health')
+    .select('health_status, status, minutos_sin_heartbeat, minutos_sin_inserts, last_inserted_at, host_name, poll_count, pedidos_today, error_count')
     .limit(1)
     .maybeSingle();
 
   if (error) {
-    log('warn', `[cron.health] Error leyendo runs: ${error.message}`);
-    return;
+    log('warn', `[cron.health] Error leyendo v_polling_health: ${error.message}`);
+    return false;
   }
-
-  if (!lastRun) {
-    log('warn', '[cron.health] Sin runs de backfill históricos — sistema nuevo o error');
+  if (!health) {
+    log('warn', '[cron.health] v_polling_health sin filas — sin runs de polling registrados');
     return false;
   }
 
-  const minutos = (Date.now() - new Date(lastRun.ended_at).getTime()) / 60_000;
-  log('info', `📊 Último cron exitoso: hace ${minutos.toFixed(0)} min | pedidos=${lastRun.pedidos_count} | host=${lastRun.host_name}`);
+  const minSinHeartbeat = Number(health.minutos_sin_heartbeat ?? 9999);
+  const minSinInserts   = Number(health.minutos_sin_inserts ?? 9999);
+  const recolectorVivo  = health.status === 'running' && minSinHeartbeat <= UMBRAL_HEARTBEAT_MIN;
 
-  if (minutos <= UMBRAL_FALLO_MIN) {
-    log('info', `✓ Cron sano (${minutos.toFixed(0)}min ≤ umbral ${UMBRAL_FALLO_MIN}min)`);
+  log('info', `▶ Liveness: status=${health.status} | heartbeat ${minSinHeartbeat.toFixed(0)}min (umbral ${UMBRAL_HEARTBEAT_MIN}) | ${minSinInserts.toFixed(0)}min sin inserts | polls=${health.poll_count} | host=${health.host_name}`);
+
+  if (recolectorVivo) {
+    log('info', `✓ Recolector vivo (heartbeat ${minSinHeartbeat.toFixed(0)}min ≤ ${UMBRAL_HEARTBEAT_MIN}min)`);
+    return false;
+  }
+
+  // Fuera de horario operativo el recolector puede estar apagado a propósito
+  // (Mac cerrado de madrugada). No entran pedidos igual → no es incidente.
+  if (!enHorario) {
+    log('info', `↳ Recolector caído pero fuera de horario (${hora}:xx EC) — no alerto`);
     return false;
   }
 
   // Cooldown para no spam
   if (await hasCooldown(supabase, 'cron_fallo', COOLDOWN_FALLO_MIN)) {
-    log('info', `⏸ Alerta cron en cooldown (${COOLDOWN_FALLO_MIN}min). Skip.`);
+    log('info', `⏸ Alerta de liveness en cooldown (${COOLDOWN_FALLO_MIN}min). Skip envío.`);
     return true; // Sí hay fallo, aunque no alertemos de nuevo
   }
 
+  // ¿Los datos igual están llegando? (el safety net de GH Actions puede estar cubriendo)
+  const datosFluyen = minSinInserts <= 60;
+  const cobertura = datosFluyen
+    ? `El safety net de GH Actions está cubriendo por ahora (último pedido hace ${minSinInserts.toFixed(0)} min), pero sin redundancia: si también falla, se pierden pedidos.`
+    : `Nadie está recolectando: ${minSinInserts.toFixed(0)} min sin registrar pedidos.`;
+
+  const causa = health.status !== 'running'
+    ? `El proceso en ${health.host_name} terminó en estado "${health.status}"`
+    : `El proceso en ${health.host_name} sigue marcado como running pero no reporta hace ${minSinHeartbeat.toFixed(0)} min (colgado)`;
+
   const content: AlertContent = {
-    titulo: `Otter cron sin datos — ${minutos.toFixed(0)} min`,
-    lugar: 'GH Actions cloud (gti-sync-basedatos)',
+    titulo: `Otter — recolector caído (${minSinHeartbeat.toFixed(0)} min sin señal)`,
+    lugar: 'Ingesta Chios Delivery (Otter)',
     severidad: 'Crítica',
     fecha: fechaEC(),
-    detalle: `El cron de GH Actions lleva ${minutos.toFixed(0)} min sin insertar pedidos. Último run exitoso: ${new Date(lastRun.ended_at).toLocaleString('es-EC', { timeZone: 'America/Guayaquil' })}. Revisar: foodixsas/gti-sync-basedatos → Actions → "Otter cloud polling safety net".`,
+    detalle: `${causa}. ${cobertura} Hoy van ${health.pedidos_today ?? 0} pedidos. Acción: relanzar el polling local en el Mac. Respaldo: foodixsas/gti-sync-basedatos → Actions → "Otter cloud polling safety net" (Run workflow → force).`,
   };
 
-  log('warn', `🚨 ALERTA CRON: ${minutos.toFixed(0)} min sin datos`);
+  log('warn', `🚨 ALERTA LIVENESS: status=${health.status} heartbeat=${minSinHeartbeat.toFixed(0)}min datos_fluyen=${datosFluyen}`);
   const result = await sendWhatsApp(content);
-  await logAlert(supabase, 'cron_fallo', minutos, content, result);
+  await logAlert(supabase, 'cron_fallo', minSinHeartbeat, content, result);
 
   if (result.ok) log('info', `✓ WhatsApp enviado (sid=${result.sid})`);
   else log('error', `❌ Twilio falló: ${result.error}`);
@@ -306,7 +343,7 @@ async function main() {
       lugar: 'FOODIX GH Actions + Twilio Production',
       severidad: 'Test',
       fecha: fechaEC(),
-      detalle: 'Si recibes este mensaje, la cadena GH Actions → Twilio Production → WhatsApp funciona correctamente. Alertas activas: fallo del cron (>30 min sin datos) + resumen horario.',
+      detalle: 'Si recibes este mensaje, la cadena GH Actions → Twilio Production → WhatsApp funciona correctamente. Alertas activas: recolector caído (>15 min sin heartbeat en horario operativo) + resumen horario + anomalía de volumen.',
     };
     const result = await sendWhatsApp(content);
     log(result.ok ? 'info' : 'error', `Twilio: ${result.ok ? 'OK sid=' + result.sid : 'FAIL ' + result.error}`);
@@ -315,23 +352,23 @@ async function main() {
     return;
   }
 
-  // 1. Fallo del cron (principal — retorna true si disparó alerta)
+  // 1. Liveness del recolector (principal — retorna true si hay fallo real)
   const cronFallo = await checkCronHealth(supabase);
 
-  // 2. Resumen horario: siempre, pero omitir si el cron está caído
+  // 2. Resumen horario: siempre, pero omitir si el recolector está caído
   //    (el resumen de "0 pedidos" cuando hay fallo conocido es ruido)
   if (!cronFallo) {
     await sendHourlySummary(supabase);
   } else {
-    log('info', '↳ Skip resumen horario (cron en fallo, datos no confiables)');
+    log('info', '↳ Skip resumen horario (recolector caído, datos no confiables)');
   }
 
-  // 3. Anomalía: solo en horario operativo y si el cron está sano
+  // 3. Anomalía: solo en horario operativo y si el recolector está sano
   const hora = horaEC();
   if (!cronFallo && hora >= HORA_APERTURA && hora <= HORA_CIERRE) {
     await checkAnomalyVolumen(supabase);
   } else if (cronFallo) {
-    log('info', '↳ Skip anomalía (cron en fallo — misma causa raíz)');
+    log('info', '↳ Skip anomalía (recolector caído — misma causa raíz)');
   } else {
     log('info', `↳ Fuera de horario (${hora}:xx EC) — skip anomalía`);
   }
