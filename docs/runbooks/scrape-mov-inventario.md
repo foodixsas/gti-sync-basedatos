@@ -25,7 +25,16 @@ gh workflow run scrape-mov-inventario.yml -f desde=03/08/2026 -f hasta=09/08/202
 gh workflow run scrape-mov-inventario.yml -f desde=01/08/2026 -f hasta=17/08/2026 -f modo=backfill -f solo="EGR:,ING:,TRA:,AJU:"
 gh run watch <run_id>
 ```
-Tiempos medidos (ago-2026): 17 días completos ≈ 27 min; un mes ≈ 45 min. Concurrency group: nunca dos corridas a la vez (GitHub cancela el pendiente más viejo si encolás dos).
+Tiempos medidos (ago-2026): 17 días completos ≈ 27 min; un mes ≈ 45-60 min. Concurrency group: nunca dos corridas a la vez (GitHub cancela el pendiente más viejo si encolás dos).
+
+## Carga histórica / varios meses (`backfill-mov-inventario.yml`)
+No encadenar dispatches del workflow diario (el grupo de concurrencia cancela el pendiente más viejo). Usar el workflow por meses: un job por mes, en serie, del más reciente al más antiguo, mismo grupo de concurrencia que el diario.
+```bash
+gh workflow run backfill-mov-inventario.yml -f desde_mes=2021-10 -f hasta_mes=2026-06   # 57 meses ≈ 45 h
+gh run list --workflow=backfill-mov-inventario.yml --limit 3
+gh run view <run_id> --json jobs --jq '.jobs[] | "\(.status)\t\(.conclusion)\t\(.name)"'
+```
+`fail-fast: false`: un mes que falla no detiene el resto — al terminar, listar los jobs con `conclusion != success` y relanzar solo esos meses (`desde_mes = hasta_mes = YYYY-MM`). Contifico tiene datos desde 2021-10. Primera carga completa lanzada 18-ago-2026 (run 32128775567).
 
 ## Validar cobertura contra el espejo de la API
 ```sql
