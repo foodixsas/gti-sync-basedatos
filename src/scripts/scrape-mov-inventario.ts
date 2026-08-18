@@ -113,9 +113,13 @@ async function login(page: Page): Promise<void> {
   await page.click('button[type="submit"], input[type="submit"]');
   await page.waitForURL('**/sistema/**', { timeout: 30000 });
   await page.waitForLoadState('networkidle');
-  // asentar la sesión: una carga real dentro del sistema antes de pedir exports por request.get
-  await page.goto(EXPORT_URL, { waitUntil: 'load', timeout: 60000 });
-  await page.waitForTimeout(2000);
+  // asentar la sesión: dejar terminar la redirección post-login y hacer una carga real dentro del sistema
+  await page.waitForTimeout(3000);
+  for (let i = 1; i <= 3; i++) {
+    try { await page.goto(EXPORT_URL, { waitUntil: 'domcontentloaded', timeout: 60000 }); break; }
+    catch (e) { if (i === 3) throw e; console.log(`  ⚠️ goto post-login falló (${(e as Error).message.split('\n')[0]}), reintento ${i}`); await page.waitForTimeout(3000); }
+  }
+  await page.waitForTimeout(1500);
   if (page.url().includes('accounts/login')) throw new Error('login falló: redirigido a accounts/login');
   console.log('✅ Login OK');
 }
