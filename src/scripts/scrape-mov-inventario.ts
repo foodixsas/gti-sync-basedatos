@@ -232,7 +232,7 @@ async function main() {
     let status: number | null = null, buf: Buffer | null = null, ctype = '';
     for (let attempt = 1; attempt <= 2 && !buf; attempt++) {
       try {
-        const resp = await context.request.get(url, { timeout: REQUEST_TIMEOUT_MS });
+        const resp = await context.request.get(url, { timeout: REQUEST_TIMEOUT_MS, headers: { Referer: EXPORT_URL, Accept: 'application/vnd.ms-excel,application/octet-stream,text/html;q=0.8,*/*;q=0.5' } });
         status = resp.status(); ctype = resp.headers()['content-type'] ?? '';
         const body = await resp.body();
         if (status === 403 || status === 429) { blocked = true; await logFail(s, status, body.length, Date.now() - ts, `bloqueo HTTP ${status}`); break; }
@@ -243,7 +243,11 @@ async function main() {
             if (relogins >= 2) { blocked = true; await logFail(s, status, body.length, Date.now() - ts, 'sesión caída y relogin agotado'); break; }
             relogins++; console.log('  ⚠️ sesión expirada → relogin'); await login(page); continue;
           }
-          if (attempt === 2) await logFail(s, status, body.length, Date.now() - ts, `HTML en vez de xls (${html.includes('Lo sentimos') ? 'error 500 Contifico' : 'desconocido'})`); else await sleep(30000);
+          const title = (html.match(/<title>([^<]*)<\/title>/i)?.[1] ?? '').trim();
+          const errs = Array.from(html.matchAll(/class="[^"]*(errorlist|alert|error)[^"]*"[^>]*>([\s\S]{0,200}?)<\//gi)).map((m) => m[2].replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()).filter(Boolean).slice(0, 5);
+          const diag = `HTML en vez de xls (${html.includes('Lo sentimos') ? 'error 500 Contifico' : 'desconocido'}) title="${title}" errs=${JSON.stringify(errs)} url_final=${resp.url()}`;
+          console.log(`  ⚠️ ${diag}`);
+          if (attempt === 2) await logFail(s, status, body.length, Date.now() - ts, diag); else await sleep(30000);
           continue;
         }
         buf = body;
