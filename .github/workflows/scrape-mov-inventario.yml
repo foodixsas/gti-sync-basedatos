@@ -1,0 +1,67 @@
+name: Scrape Movimientos Inventario (Contifico web)
+
+# Export "Detalle Movimientos Inventario" → contifico_web.mov_inventario_detalle
+# - schedule: diario 04:10 EC (ayer + hoy)
+# - dispatch: backfill / re-scrape por rango (DD/MM/YYYY)
+# Ver src/scripts/scrape-mov-inventario.ts
+
+on:
+  schedule:
+    - cron: '10 9 * * *'   # 09:10 UTC = 04:10 Ecuador (después de scrape-costos 09:00)
+  workflow_dispatch:
+    inputs:
+      desde:
+        description: 'Fecha inicio (DD/MM/YYYY)'
+        required: true
+        default: '01/08/2026'
+      hasta:
+        description: 'Fecha fin (DD/MM/YYYY)'
+        required: true
+        default: '17/08/2026'
+      modo:
+        description: 'backfill | manual | semanal | mensual'
+        required: true
+        default: 'backfill'
+      solo:
+        description: 'Opcional: un solo slice tipo:origen (ej. EGR:MAN)'
+        required: false
+        default: ''
+
+# Nunca dos corridas a la vez contra Contifico (las descargas se serializan del lado de ellos)
+concurrency:
+  group: scrape-mov-inventario
+  cancel-in-progress: false
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Install Playwright Chromium
+        run: npx playwright install chromium --with-deps
+
+      - name: Run scraper
+        env:
+          CONTIFICO_EMAIL: ${{ secrets.CONTIFICO_EMAIL }}
+          CONTIFICO_PASSWORD: ${{ secrets.CONTIFICO_PASSWORD }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          set -o pipefail
+          if [ "${{ github.event_name }}" = "schedule" ]; then
+            npx tsx src/scripts/scrape-mov-inventario.ts
+          else
+            SOLO=""
+            if [ -n "${{ inputs.solo }}" ]; then SOLO="--solo ${{ inputs.solo }}"; fi
+            npx tsx src/scripts/scrape-mov-inventario.ts --desde "${{ inputs.desde }}" --hasta "${{ inputs.hasta }}" --modo "${{ inputs.modo }}" $SOLO
+          fi

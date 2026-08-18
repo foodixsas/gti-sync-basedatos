@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "scrape": "tsx src/scripts/scrape-costos.ts",
+    "scrape-mov-inventario": "tsx --env-file=.env.local src/scripts/scrape-mov-inventario.ts",
     "explore-otter": "tsx --env-file=.env.local src/scripts/explore-otter.ts",
     "explore-otter-pedidos": "tsx --env-file=.env.local src/scripts/explore-otter-pedidos.ts",
     "sample-otter-pedidos": "tsx --env-file=.env.local src/scripts/sample-otter-pedidos.ts",
