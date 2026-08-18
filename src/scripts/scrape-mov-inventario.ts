@@ -9,8 +9,10 @@
  *   3. Valida el encabezado (19 columnas exactas: si Contifico cambia el formato, falla en rojo).
  *   4. Normaliza filas → RPC fn_web_mov_stage (lotes) → RPC fn_web_mov_commit (reemplazo por documento,
  *      cabeceras, fantasmas y latido en contifico_web.sync_log). Un slice vacío también deja latido.
- *   5. Slices: ventas POS (EGR × origen DOC) van POR DÍA (es el 98 % del volumen); el resto por semana
- *      y por (tipo × origen) para que cada fila lleve su origen como dato del filtro, no deducido del texto.
+ *   5. Slices: EGR "Todos" (ventas POS + toma física + resto) va POR DÍA (es el 98 % del volumen); ING/TRA/AJU "Todos"
+ *      por semana; y por cada origen NO derivable (MAN/IMP/API/AUT/ORP/MED/LIQ) por semana para etiquetar origen.
+ *      El origen de las filas "Todos" lo resuelve el RPC: Referencia FAC/NVE/DNA/LQR → DOC, PRO → PRO, si no el que
+ *      ya tenía el documento, si no NULL (= sin origen en Contifico, caso toma física).
  *
  * Uso:
  *   tsx src/scripts/scrape-mov-inventario.ts                                  # diario: ayer y hoy (hora Ecuador)
@@ -37,8 +39,11 @@ const SUPABASE_URL = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABAS
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
 const TIPOS = ['ING', 'EGR', 'TRA', 'AJU'] as const;
-const ORIGENES = ['DOC', 'PRO', 'MAN', 'IMP', 'API', 'AUT', 'ORP', 'MED', 'LIQ'] as const;
-const HEAVY: [string, string] = ['EGR', 'DOC']; // ventas POS: por día
+// Orígenes que NO se pueden derivar de la Referencia (DOC ← FAC/NVE/DNA/LQR…, PRO ← PRO): se bajan por origen (livianos, por semana)
+const ORIGENES_LIGHT = ['MAN', 'IMP', 'API', 'AUT', 'ORP', 'MED', 'LIQ'] as const;
+// Slices "Todos" (origen vacío): traen TAMBIÉN los movimientos sin origen en Contifico (toma física). El de EGR es el pesado (ventas POS) → por día.
+const TODOS = '';
+const HEAVY: [string, string] = ['EGR', TODOS];
 
 // Columnas EXACTAS del export (si cambia el encabezado, el scraper falla en rojo)
 const EXPECTED_COLS = [
@@ -81,8 +86,11 @@ interface Slice { desde: Date; hasta: Date; tipo: string; origen: string; heavy:
 export function buildSlices(desde: Date, hasta: Date, solo?: string): Slice[] {
   const slices: Slice[] = [];
   const combos: [string, string][] = [];
-  for (const t of TIPOS) for (const o of ORIGENES) combos.push([t, o]);
-  const filtered = solo ? combos.filter(([t, o]) => `${t}:${o}` === solo.toUpperCase()) : combos;
+  for (const t of TIPOS) combos.push([t, TODOS]);
+  for (const t of TIPOS) for (const o of ORIGENES_LIGHT) combos.push([t, o]);
+  // --solo acepta lista separada por coma: "EGR:MAN,ING:" (origen vacío = Todos)
+  const wanted = solo ? solo.toUpperCase().split(',').map((x) => x.trim()).filter(Boolean) : null;
+  const filtered = wanted ? combos.filter(([t, o]) => wanted.includes(`${t}:${o}`)) : combos;
 
   for (const [tipo, origen] of filtered) {
     const heavy = tipo === HEAVY[0] && origen === HEAVY[1];
@@ -224,10 +232,10 @@ async function main() {
   let ok = 0, fail = 0, filasTotal = 0, docsTotal = 0, blocked = false, relogins = 0;
 
   const logFail = async (s: Slice, status: number | null, bytes: number | null, durMs: number, error: string) => {
-    console.log(`  ❌ ${s.tipo}:${s.origen} ${fmtDMY(s.desde)}→${fmtDMY(s.hasta)} ${error}`);
+    console.log(`  ❌ ${s.tipo}:${s.origen || 'TODOS'} ${fmtDMY(s.desde)}→${fmtDMY(s.hasta)} ${error}`);
     if (args.dry) return;
     await supabase.rpc('fn_web_mov_log', {
-      p_run_id: runId, p_fecha_desde: fmtISO(s.desde), p_fecha_hasta: fmtISO(s.hasta), p_tipo: s.tipo, p_origen: s.origen,
+      p_run_id: runId, p_fecha_desde: fmtISO(s.desde), p_fecha_hasta: fmtISO(s.hasta), p_tipo: s.tipo, p_origen: s.origen || null,
       p_modo: args.modo, p_ok: false, p_http_status: status, p_bytes: bytes, p_dur_ms: durMs, p_error: error.slice(0, 500), p_meta: { url: exportUrl(s) },
     });
   };
@@ -235,7 +243,7 @@ async function main() {
   for (let i = 0; i < slices.length && !blocked; i++) {
     const s = slices[i];
     const url = exportUrl(s);
-    const label = `[${i + 1}/${slices.length}] ${s.tipo}:${s.origen} ${fmtDMY(s.desde)}→${fmtDMY(s.hasta)}`;
+    const label = `[${i + 1}/${slices.length}] ${s.tipo}:${s.origen || 'TODOS'} ${fmtDMY(s.desde)}→${fmtDMY(s.hasta)}`;
     const ts = Date.now();
     let status: number | null = null, buf: Buffer | null = null, ctype = '';
     for (let attempt = 1; attempt <= 2 && !buf; attempt++) {
@@ -288,7 +296,7 @@ async function main() {
     if (stageErr) { fail++; await logFail(s, status, buf.length, Date.now() - ts, stageErr); await sleep(rand(PAUSE_LIGHT_MS)); continue; }
 
     const { data, error } = await supabase.rpc('fn_web_mov_commit', {
-      p_run_id: runId, p_fecha_desde: fmtISO(s.desde), p_fecha_hasta: fmtISO(s.hasta), p_tipo: s.tipo, p_origen: s.origen,
+      p_run_id: runId, p_fecha_desde: fmtISO(s.desde), p_fecha_hasta: fmtISO(s.hasta), p_tipo: s.tipo, p_origen: s.origen || null,
       p_modo: args.modo, p_http_status: status, p_bytes: buf.length, p_dur_ms: Date.now() - ts,
       p_meta: { url, filas_archivo: parsed.rows.length, extra_cols: parsed.extraCols },
     });
