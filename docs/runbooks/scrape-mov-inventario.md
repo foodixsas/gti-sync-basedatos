@@ -3,6 +3,7 @@
 **Cuándo usar:** el dashboard de costos muestra datos viejos; `contifico_web.sync_log` no tiene filas de hoy; hay que re-bajar un rango (edición retroactiva, producción registrada tarde, cambio de reglas); o el workflow apareció en rojo.
 
 ## Qué es
+- Tabla plana (sin particiones) — decisión de Daniel 18-ago-2026.
 - Fuente única de movimientos de inventario **con costo real por línea** (6 decimales), bodega, centro de costo y documento origen (`Referencia`): compras, producción (insumos ↔ PT), traslados, egresos directos a costo, consumo por venta (POS), bajas, toma física.
 - Script: `src/scripts/scrape-mov-inventario.ts`. Workflow: `.github/workflows/scrape-mov-inventario.yml` (schedule 09:10 UTC = 04:10 EC, ayer+hoy; `workflow_dispatch` para rangos).
 - Login Playwright con secrets GH `CONTIFICO_EMAIL/CONTIFICO_PASSWORD` → `GET inventario/movimiento/?excel=2&fecha_inicio&fecha_fin&tipo&origen` con la cookie de sesión → RPC `fn_web_mov_stage` / `fn_web_mov_commit` (reemplazo por documento, cabeceras en `mov_inventario_doc`, fantasmas `deleted_at`, latido en `sync_log`).
