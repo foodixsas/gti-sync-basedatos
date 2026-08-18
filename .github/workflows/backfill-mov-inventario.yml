@@ -1,0 +1,83 @@
+name: Backfill Movimientos Inventario (Contifico web, por meses)
+
+# Carga histórica de "Detalle Movimientos Inventario" → contifico_web.mov_inventario_detalle
+# Un job por mes, en serie (max-parallel 1), del mes más reciente al más antiguo.
+# Comparte el grupo de concurrencia con el scraper diario: nunca dos descargas a la vez contra Contifico.
+# Uso: gh workflow run backfill-mov-inventario.yml -f desde_mes=2025-01 -f hasta_mes=2026-06
+
+on:
+  workflow_dispatch:
+    inputs:
+      desde_mes:
+        description: 'Primer mes a cargar (YYYY-MM, el más antiguo)'
+        required: true
+        default: '2025-01'
+      hasta_mes:
+        description: 'Último mes a cargar (YYYY-MM, el más reciente)'
+        required: true
+        default: '2026-06'
+      solo:
+        description: 'Opcional: slices tipo:origen separados por coma (ej. EGR:MAN,ING:)'
+        required: false
+        default: ''
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      meses: ${{ steps.gen.outputs.meses }}
+    steps:
+      - id: gen
+        run: |
+          set -euo pipefail
+          d="${{ inputs.desde_mes }}-01"; h="${{ inputs.hasta_mes }}-01"
+          date -d "$d" >/dev/null; date -d "$h" >/dev/null
+          if [[ "$d" > "$h" ]]; then echo "desde_mes > hasta_mes"; exit 1; fi
+          items=""
+          cur="$h"
+          while [[ ! "$cur" < "$d" ]]; do
+            y=${cur:0:4}; m=${cur:5:2}
+            fin=$(date -d "$cur +1 month -1 day" +%d)
+            items+="{\"mes\":\"$y-$m\",\"desde\":\"01/$m/$y\",\"hasta\":\"$fin/$m/$y\"},"
+            cur=$(date -d "$cur -1 month" +%Y-%m-01)
+          done
+          echo "meses=[${items%,}]" >> "$GITHUB_OUTPUT"
+          echo "Meses (más reciente primero): [${items%,}]"
+
+  scrape:
+    needs: plan
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix:
+        include: ${{ fromJSON(needs.plan.outputs.meses) }}
+    concurrency:
+      group: scrape-mov-inventario
+      cancel-in-progress: false
+    name: mes ${{ matrix.mes }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Install Playwright Chromium
+        run: npx playwright install chromium --with-deps
+
+      - name: Scrape ${{ matrix.mes }}
+        env:
+          CONTIFICO_EMAIL: ${{ secrets.CONTIFICO_EMAIL }}
+          CONTIFICO_PASSWORD: ${{ secrets.CONTIFICO_PASSWORD }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          set -o pipefail
+          SOLO=""
+          if [ -n "${{ inputs.solo }}" ]; then SOLO="--solo ${{ inputs.solo }}"; fi
+          npx tsx src/scripts/scrape-mov-inventario.ts --desde "${{ matrix.desde }}" --hasta "${{ matrix.hasta }}" --modo backfill $SOLO
