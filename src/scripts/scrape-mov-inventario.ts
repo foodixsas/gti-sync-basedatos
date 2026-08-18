@@ -113,6 +113,10 @@ async function login(page: Page): Promise<void> {
   await page.click('button[type="submit"], input[type="submit"]');
   await page.waitForURL('**/sistema/**', { timeout: 30000 });
   await page.waitForLoadState('networkidle');
+  // asentar la sesión: una carga real dentro del sistema antes de pedir exports por request.get
+  await page.goto(EXPORT_URL, { waitUntil: 'load', timeout: 60000 });
+  await page.waitForTimeout(2000);
+  if (page.url().includes('accounts/login')) throw new Error('login falló: redirigido a accounts/login');
   console.log('✅ Login OK');
 }
 
@@ -239,7 +243,8 @@ async function main() {
         if (status !== 200) { if (attempt === 2) await logFail(s, status, body.length, Date.now() - ts, `HTTP ${status}`); else await sleep(30000); continue; }
         if (ctype.includes('text/html')) {
           const html = body.toString('utf8');
-          if (html.includes('id_username') || html.includes('accounts/login')) {
+          const esLogin = resp.url().includes('accounts/login') || /Iniciar sesi/i.test(html) || html.includes('id_username');
+          if (esLogin) {
             if (relogins >= 2) { blocked = true; await logFail(s, status, body.length, Date.now() - ts, 'sesión caída y relogin agotado'); break; }
             relogins++; console.log('  ⚠️ sesión expirada → relogin'); await login(page); continue;
           }
