@@ -34,7 +34,12 @@ gh workflow run backfill-mov-inventario.yml -f desde_mes=2021-10 -f hasta_mes=20
 gh run list --workflow=backfill-mov-inventario.yml --limit 3
 gh run view <run_id> --json jobs --jq '.jobs[] | "\(.status)\t\(.conclusion)\t\(.name)"'
 ```
-`fail-fast: false`: un mes que falla no detiene el resto — al terminar, listar los jobs con `conclusion != success` y relanzar solo esos meses (`desde_mes = hasta_mes = YYYY-MM`). Contifico tiene datos desde 2021-10. Primera carga completa lanzada 18-ago-2026 (run 32128775567).
+`fail-fast: false`: un mes que falla no detiene el resto — al terminar, listar los jobs con `conclusion != success` y relanzarlos con `-f lista=2025-10,2024-10` (lista explícita, ignora desde/hasta). Contifico tiene datos desde 2021-10. Primera carga completa lanzada 18-ago-2026 (run 32128775567; 2 meses cayeron por **apt-get colgado en `playwright install --with-deps`** (job "cancelled" a los 350 min, 0 filas en `sync_log`) → el paso de instalación ahora tiene `timeout 420` + 3 reintentos; relanzados en un segundo run con `lista`).
+
+| Síntoma del job | Causa | Qué hacer |
+|---|---|---|
+| `cancelled` a las 5 h 50 min y **sin filas en `sync_log`** para ese mes | el runner se colgó antes de correr el scraper (apt-get de Playwright) | relanzar el mes con `lista=`; no es Contifico |
+| `failure` con filas parciales | algún slice falló (ver `sync_log.ok=false`, `error`) | relanzar el mes; el reemplazo por documento no duplica |
 
 ## Validar cobertura contra el espejo de la API
 ```sql

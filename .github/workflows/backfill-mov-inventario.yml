@@ -20,6 +20,10 @@ on:
         description: 'Opcional: slices tipo:origen separados por coma (ej. EGR:MAN,ING:)'
         required: false
         default: ''
+      lista:
+        description: 'Opcional: lista explícita de meses YYYY-MM separados por coma (ignora desde/hasta; útil para relanzar meses fallidos)'
+        required: false
+        default: ''
 
 jobs:
   plan:
@@ -30,19 +34,28 @@ jobs:
       - id: gen
         run: |
           set -euo pipefail
-          d="${{ inputs.desde_mes }}-01"; h="${{ inputs.hasta_mes }}-01"
-          date -d "$d" >/dev/null; date -d "$h" >/dev/null
-          if [[ "$d" > "$h" ]]; then echo "desde_mes > hasta_mes"; exit 1; fi
           items=""
-          cur="$h"
-          while [[ ! "$cur" < "$d" ]]; do
-            y=${cur:0:4}; m=${cur:5:2}
-            fin=$(date -d "$cur +1 month -1 day" +%d)
+          add_mes() {
+            local y=${1:0:4} m=${1:5:2}
+            date -d "$y-$m-01" >/dev/null
+            local fin; fin=$(date -d "$y-$m-01 +1 month -1 day" +%d)
             items+="{\"mes\":\"$y-$m\",\"desde\":\"01/$m/$y\",\"hasta\":\"$fin/$m/$y\"},"
-            cur=$(date -d "$cur -1 month" +%Y-%m-01)
-          done
+          }
+          LISTA="${{ inputs.lista }}"
+          if [ -n "$LISTA" ]; then
+            for mes in $(echo "$LISTA" | tr ',' ' '); do add_mes "$mes"; done
+          else
+            d="${{ inputs.desde_mes }}-01"; h="${{ inputs.hasta_mes }}-01"
+            date -d "$d" >/dev/null; date -d "$h" >/dev/null
+            if [[ "$d" > "$h" ]]; then echo "desde_mes > hasta_mes"; exit 1; fi
+            cur="$h"
+            while [[ ! "$cur" < "$d" ]]; do
+              add_mes "${cur:0:7}"
+              cur=$(date -d "$cur -1 month" +%Y-%m-01)
+            done
+          fi
           echo "meses=[${items%,}]" >> "$GITHUB_OUTPUT"
-          echo "Meses (más reciente primero): [${items%,}]"
+          echo "Meses (en orden de ejecución): [${items%,}]"
 
   scrape:
     needs: plan
@@ -67,8 +80,15 @@ jobs:
       - name: Install dependencies
         run: npm install
 
+      # apt-get del runner se quedó colgado 5h50m en 2 de 25 jobs (18/19-ago-2026) → tope por intento + reintentos
       - name: Install Playwright Chromium
-        run: npx playwright install chromium --with-deps
+        timeout-minutes: 25
+        run: |
+          for i in 1 2 3; do
+            timeout 420 npx playwright install chromium --with-deps && exit 0
+            echo "playwright install falló/colgó (intento $i), reintentando…"; sleep 20
+          done
+          exit 1
 
       - name: Scrape ${{ matrix.mes }}
         env:

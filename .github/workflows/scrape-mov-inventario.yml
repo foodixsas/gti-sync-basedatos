@@ -47,8 +47,15 @@ jobs:
       - name: Install dependencies
         run: npm install
 
+      # apt-get del runner se quedó colgado 5h50m en 2 de 25 jobs (18/19-ago-2026) → tope por intento + reintentos
       - name: Install Playwright Chromium
-        run: npx playwright install chromium --with-deps
+        timeout-minutes: 25
+        run: |
+          for i in 1 2 3; do
+            timeout 420 npx playwright install chromium --with-deps && exit 0
+            echo "playwright install falló/colgó (intento $i), reintentando…"; sleep 20
+          done
+          exit 1
 
       - name: Run scraper
         env:
