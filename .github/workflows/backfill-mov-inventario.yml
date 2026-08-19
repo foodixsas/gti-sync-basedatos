@@ -80,15 +80,22 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      # apt-get del runner se quedó colgado 5h50m en 2 de 25 jobs (18/19-ago-2026) → tope por intento + reintentos
+      # apt del runner (espejo azure.archive.ubuntu.com) se colgó/falló en varios jobs (18/19-ago-2026).
+      # 1) el navegador se baja del CDN de Playwright (sin apt, nunca se cuelga);
+      # 2) las libs del sistema con tope + reintentos, matando apt colgado entre intentos;
+      # 3) si apt sigue roto, se continúa: ubuntu-latest ya trae las libs de Chrome.
       - name: Install Playwright Chromium
         timeout-minutes: 25
         run: |
+          npx playwright install chromium
           for i in 1 2 3; do
-            timeout 420 npx playwright install chromium --with-deps && exit 0
-            echo "playwright install falló/colgó (intento $i), reintentando…"; sleep 20
+            timeout 300 npx playwright install-deps chromium && exit 0
+            echo "install-deps falló/colgó (intento $i)"; sudo pkill -9 -f 'apt-get|dpkg' 2>/dev/null || true
+            sudo rm -f /var/lib/apt/lists/lock /var/lib/dpkg/lock-frontend /var/lib/dpkg/lock 2>/dev/null || true
+            sleep 20
           done
-          exit 1
+          echo "::warning::install-deps falló 3 veces; se continúa con las libs del runner"
+          exit 0
 
       - name: Scrape ${{ matrix.mes }}
         env:
