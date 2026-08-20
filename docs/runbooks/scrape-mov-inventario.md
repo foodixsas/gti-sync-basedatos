@@ -59,5 +59,6 @@ Si aparecen, comprobar contra `GET https://api.contifico.com/sistema/api/v2/movi
 | Slice pesado > 20 min | día con muchas ventas / Contifico lento | reintenta 1 vez; luego re-lanzar solo ese día con `--solo EGR:` |
 
 ## Pendientes
-- Alerta WhatsApp en fallo (hoy: exit≠0 + `sync_log`). Corrida semanal (últimos 30 días) y cierre mensual.
+- Alerta WhatsApp en fallo (hoy: exit≠0 + `sync_log`). Cierre mensual.
+- ✅ Corrida semanal ACTIVA (20-ago): el cron del domingo re-baja los últimos 30 días (`modo=semanal`) — captura ediciones retroactivas (caso PAPAS 18-ago: ingreso corregido 2 días después; el diario solo cubre ayer+hoy).
 - `contifico_clean.mov_ingresos_contif_scrape` (scraper viejo, solo ING) sigue corriendo en paralelo hasta migrar consumidores a la tabla nueva.

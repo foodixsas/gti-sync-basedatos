@@ -73,7 +73,13 @@ jobs:
         run: |
           set -o pipefail
           if [ "${{ github.event_name }}" = "schedule" ]; then
-            npx tsx src/scripts/scrape-mov-inventario.ts
+            # Domingos: re-bajar los últimos 30 días (captura ediciones retroactivas en Contifico,
+            # p.ej. ingresos corregidos días después — caso PAPAS FRANCESAS 18/20-ago-2026).
+            if [ "$(date -u +%u)" = "7" ]; then
+              npx tsx src/scripts/scrape-mov-inventario.ts --desde "$(date -u -d '30 days ago' +%d/%m/%Y)" --hasta "$(date -u +%d/%m/%Y)" --modo semanal
+            else
+              npx tsx src/scripts/scrape-mov-inventario.ts
+            fi
           else
             SOLO=""
             if [ -n "${{ inputs.solo }}" ]; then SOLO="--solo ${{ inputs.solo }}"; fi
