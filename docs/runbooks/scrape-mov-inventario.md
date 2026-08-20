@@ -41,6 +41,16 @@ gh run view <run_id> --json jobs --jq '.jobs[] | "\(.status)\t\(.conclusion)\t\(
 | `cancelled` a las 5 h 50 min y **sin filas en `sync_log`** para ese mes | el runner se colgó antes de correr el scraper (apt-get de Playwright) | relanzar el mes con `lista=`; no es Contifico |
 | `failure` con filas parciales | algún slice falló (ver `sync_log.ok=false`, `error`) | relanzar el mes; el reemplazo por documento no duplica |
 
+## Después de CUALQUIER re-scrape manual (obligatorio)
+El dashboard NO lee la tabla base: lee `contifico_clean.mv_compras_lineas` (refresh automático solo 09:50 UTC) y detrás hay caché Redis (TTL 30 min). Un re-scrape sin estos 2 pasos deja el dashboard mostrando datos viejos (caso PAPAS 20-ago-2026: re-scrape OK a las 13:43, refresh murió por timeout de 2 min y nadie lo notó → Daniel seguía viendo $12.50/kg):
+```sql
+SET statement_timeout='900000';  -- 15 min: la vista reconstruye TODA la historia; con 2 min muere
+REFRESH MATERIALIZED VIEW CONCURRENTLY contifico_clean.mv_compras_lineas;
+-- VERIFICAR que el dato esperado quedó en la vista (producción, no pulso):
+select cantidad, valor_unitario from contifico_clean.mv_compras_lineas where ing='ING …';
+```
+Luego invalidar caché (scratchpad `flush-cc-cache.mjs` con env de foodix-dashboard, o esperar 30 min de TTL) y recargar la página verificando el valor.
+
 ## Validar cobertura contra el espejo de la API
 ```sql
 -- docs en la API que no están en el web (candidatos a fantasma de la API)
