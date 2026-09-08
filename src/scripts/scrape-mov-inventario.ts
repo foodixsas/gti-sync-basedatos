@@ -21,11 +21,12 @@
  *
  * Salida: exit 0 si todos los slices OK; exit 1 si alguno falló; exit 2 si Contifico bloqueó (403/429/login caído).
  */
-import { chromium, type Page, type BrowserContext } from 'playwright';
+import { chromium, type Browser, type Page, type BrowserContext } from 'playwright';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import * as XLSX from 'xlsx';
 import * as fs from 'fs';
 import * as path from 'path';
+import * as os from 'os';
 import { randomUUID } from 'crypto';
 
 // ─── Config ────────────────────────────────────────────────────────────────
@@ -37,6 +38,11 @@ const CONTIFICO_EMAIL = process.env.CONTIFICO_EMAIL!;
 const CONTIFICO_PASSWORD = process.env.CONTIFICO_PASSWORD!;
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+// Opcional: archivo donde persistir las cookies de la sesión (storageState) entre corridas.
+// Lo usa el job intradía de la Mac (cada 5 min): 1 login por día en vez de 288 — Contifico ya rebotó un login el 07-sep.
+const STATE_FILE = process.env.CONTIFICO_STATE_FILE || '';
+// Captura de pantalla cuando falla el login (lección PedidosYa): en GH Actions el workflow la sube como artefacto.
+const SHOT_DIR = process.env.CONTIFICO_SHOT_DIR || path.join(os.tmpdir(), 'contifico-scrape');
 
 const TIPOS = ['ING', 'EGR', 'TRA', 'AJU'] as const;
 // Orígenes que NO se pueden derivar de la Referencia (DOC ← FAC/NVE/DNA/LQR…, PRO ← PRO): se bajan por origen (livianos, por semana)
@@ -130,6 +136,24 @@ async function login(page: Page): Promise<void> {
   await page.waitForTimeout(1500);
   if (page.url().includes('accounts/login')) throw new Error('login falló: redirigido a accounts/login');
   console.log('✅ Login OK');
+  if (STATE_FILE) {
+    await page.context().storageState({ path: STATE_FILE });
+    fs.chmodSync(STATE_FILE, 0o600); // contiene la cookie de sesión
+    console.log(`💾 sesión guardada en ${STATE_FILE}`);
+  }
+}
+
+// Reusar la sesión guardada si sigue viva; si Contifico la rebota, login normal.
+async function ensureSession(page: Page, reusable: boolean): Promise<void> {
+  if (!reusable) return login(page);
+  try {
+    await page.goto(EXPORT_URL, { waitUntil: 'domcontentloaded', timeout: 60000 });
+    if (!page.url().includes('accounts/login')) { console.log('♻️ sesión reutilizada (sin login)'); return; }
+    console.log('⚠️ sesión guardada vencida → login');
+  } catch (e) {
+    console.log(`⚠️ no se pudo probar la sesión guardada (${(e as Error).message.split('\n')[0]}) → login`);
+  }
+  await login(page);
 }
 
 // ─── Parse ─────────────────────────────────────────────────────────────────
@@ -224,10 +248,38 @@ async function main() {
   const supabase: SupabaseClient = createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { persistSession: false } });
   const tmpDir = path.join(process.cwd(), 'tmp', 'mov-inventario'); if (args.keepFiles) fs.mkdirSync(tmpDir, { recursive: true });
 
-  const browser = await chromium.launch({ headless: true });
-  const context: BrowserContext = await browser.newContext({ acceptDownloads: true });
+  // Fallo antes de bajar nada (navegador o login): dejar evidencia en sync_log y salir con 1. Lección PedidosYa:
+  // el 07-sep-2026 el respaldo de GitHub falló en el login sin dejar rastro en la DB y el hueco se vio 2 días después.
+  const fallaPrevia = async (fase: 'navegador' | 'login', msg: string, meta: Record<string, unknown>): Promise<never> => {
+    const error = `${fase}: ${msg}`.slice(0, 500);
+    console.log(`❌ ${error}`);
+    if (!args.dry) {
+      const r = await supabase.rpc('fn_web_mov_log', {
+        p_run_id: runId, p_fecha_desde: fmtISO(desde), p_fecha_hasta: fmtISO(hasta), p_tipo: 'LOG', p_origen: null, p_modo: args.modo,
+        p_ok: false, p_http_status: null, p_bytes: null, p_dur_ms: Date.now() - t0, p_error: error, p_meta: { fase, ...meta },
+      });
+      if (r.error) console.log(`⚠️ no se pudo registrar el fallo en sync_log: ${r.error.message}`);
+    }
+    console.log(`■ RESUMEN ${JSON.stringify({ run_id: runId, modo: args.modo, desde: args.desde, hasta: args.hasta, slices: slices.length, ok: 0, fail: slices.length, blocked: false, fase, dur_min: Math.round((Date.now() - t0) / 60000) })}`);
+    process.exit(1);
+  };
+
+  // p.ej. chromium sin instalar (pasó el 08-sep-2026 en la Mac: los jobs de launchd habrían fallado sin dejar fila)
+  const browser: Browser = await chromium.launch({ headless: true })
+    .catch((e: Error) => fallaPrevia('navegador', e.message.split('\n')[0], {}));
+  const reuse = !!STATE_FILE && fs.existsSync(STATE_FILE);
+  const context: BrowserContext = await browser.newContext({ acceptDownloads: true, ...(reuse ? { storageState: STATE_FILE } : {}) });
   const page = await context.newPage();
-  await login(page);
+  try {
+    await ensureSession(page, reuse);
+  } catch (e) {
+    const shot = path.join(SHOT_DIR, `contifico-login-fallo-${fmtISO(new Date())}-${runId.slice(0, 8)}.png`);
+    try { fs.mkdirSync(SHOT_DIR, { recursive: true }); await page.screenshot({ path: shot, fullPage: true }); console.log(`📸 captura del fallo: ${shot}`); }
+    catch (se) { console.log(`⚠️ sin captura: ${(se as Error).message.split('\n')[0]}`); }
+    const url = page.url();
+    await browser.close();
+    await fallaPrevia('login', (e as Error).message.split('\n')[0], { url, captura: shot, sesion_reutilizada: reuse });
+  }
 
   let ok = 0, fail = 0, filasTotal = 0, docsTotal = 0, blocked = false, relogins = 0;
 
@@ -301,6 +353,8 @@ async function main() {
       p_meta: { url, filas_archivo: parsed.rows.length, extra_cols: parsed.extraCols },
     });
     if (error) { fail++; await logFail(s, status, buf.length, Date.now() - ts, `commit: ${error.message}`); await sleep(rand(PAUSE_LIGHT_MS)); continue; }
+    // guarda de fn_web_mov_commit: export sin documentos con docs vivos en el rango → no se tocó nada y ya quedó ok=false en sync_log
+    if (data?.ok === false) { fail++; console.log(`  ⚠️ ${label} ${data.motivo}`); await sleep(rand(PAUSE_LIGHT_MS)); continue; }
     ok++; filasTotal += data?.filas ?? 0; docsTotal += data?.docs ?? 0;
     console.log(`${label} status=${status} bytes=${buf.length} filas=${data?.filas} docs=${data?.docs} (+${data?.nuevos} ~${data?.actualizados} -${data?.borrados}) ${Date.now() - ts}ms`);
     await sleep(rand(s.heavy ? PAUSE_HEAVY_MS : PAUSE_LIGHT_MS));

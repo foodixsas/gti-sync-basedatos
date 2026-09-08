@@ -66,6 +66,7 @@ jobs:
 
       - name: Run scraper
         env:
+          CONTIFICO_SHOT_DIR: ${{ runner.temp }}/contifico-scrape
           CONTIFICO_EMAIL: ${{ secrets.CONTIFICO_EMAIL }}
           CONTIFICO_PASSWORD: ${{ secrets.CONTIFICO_PASSWORD }}
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
@@ -85,3 +86,14 @@ jobs:
             if [ -n "${{ inputs.solo }}" ]; then SOLO="--solo ${{ inputs.solo }}"; fi
             npx tsx src/scripts/scrape-mov-inventario.ts --desde "${{ inputs.desde }}" --hasta "${{ inputs.hasta }}" --modo "${{ inputs.modo }}" $SOLO
           fi
+
+      # Lección PedidosYa: 105 fallos de login seguidos sin una sola captura guardada (el runner se limpia al
+      # terminar). Si el scraper falla, la captura del login queda 14 días como artifact del run.
+      - name: Guardar captura del fallo de login
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: contifico-login-fallo-${{ github.run_id }}
+          path: ${{ runner.temp }}/contifico-scrape/*.png
+          if-no-files-found: ignore
+          retention-days: 14
