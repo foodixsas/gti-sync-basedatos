@@ -64,7 +64,7 @@ const PAUSE_LIGHT_MS: [number, number] = [2000, 5000];
 const PAUSE_HEAVY_MS: [number, number] = [5000, 10000];
 
 // ─── Args ──────────────────────────────────────────────────────────────────
-interface Args { desde: string; hasta: string; modo: string; solo?: string; dry: boolean; keepFiles: boolean; }
+interface Args { desde: string; hasta: string; modo: string; solo?: string; sin?: string; dry: boolean; keepFiles: boolean; }
 
 function todayEcuador(): Date {
   const s = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Guayaquil', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
@@ -83,20 +83,23 @@ function parseArgs(): Args {
   const desde = get('--desde') ?? fmtDMY(addDays(hoy, -1));
   const hasta = get('--hasta') ?? fmtDMY(hoy);
   const modo = get('--modo') ?? (get('--desde') ? 'manual' : 'diario');
-  return { desde, hasta, modo, solo: get('--solo'), dry: a.includes('--dry'), keepFiles: a.includes('--keep-files') };
+  return { desde, hasta, modo, solo: get('--solo'), sin: get('--sin'), dry: a.includes('--dry'), keepFiles: a.includes('--keep-files') };
 }
 
 // ─── Slices ────────────────────────────────────────────────────────────────
 interface Slice { desde: Date; hasta: Date; tipo: string; origen: string; heavy: boolean; }
 
-export function buildSlices(desde: Date, hasta: Date, solo?: string): Slice[] {
+// --sin excluye slices (misma sintaxis que --solo). Nació el 09-sep-2026 para que el diario
+// baje 10 días de movimientos livianos sin repetir las ventas POS (EGR:DOC, pesadas).
+export function buildSlices(desde: Date, hasta: Date, solo?: string, sin?: string): Slice[] {
   const slices: Slice[] = [];
   const combos: [string, string][] = [];
   for (const t of TIPOS) combos.push([t, TODOS]);
   for (const t of TIPOS) for (const o of ORIGENES_LIGHT) combos.push([t, o]);
   // --solo acepta lista separada por coma: "EGR:MAN,ING:" (origen vacío = Todos)
   const wanted = solo ? solo.toUpperCase().split(',').map((x) => x.trim()).filter(Boolean) : null;
-  const filtered = wanted ? combos.filter(([t, o]) => wanted.includes(`${t}:${o}`)) : combos;
+  const excluded = sin ? sin.toUpperCase().split(',').map((x) => x.trim()).filter(Boolean) : [];
+  const filtered = combos.filter(([t, o]) => (!wanted || wanted.includes(`${t}:${o}`)) && !excluded.includes(`${t}:${o}`));
 
   for (const [tipo, origen] of filtered) {
     const heavy = tipo === HEAVY[0] && origen === HEAVY[1];
@@ -241,7 +244,7 @@ async function main() {
   const desde = parseDMY(args.desde), hasta = parseDMY(args.hasta);
   if (!(desde <= hasta)) { console.error('❌ --desde debe ser ≤ --hasta'); process.exit(1); }
   const runId = randomUUID();
-  const slices = buildSlices(desde, hasta, args.solo);
+  const slices = buildSlices(desde, hasta, args.solo, args.sin);
   const t0 = Date.now();
   console.log(`▶ scrape-mov-inventario run=${runId} modo=${args.modo} ${args.desde}→${args.hasta} slices=${slices.length} (pesados=${slices.filter((s) => s.heavy).length}) dry=${args.dry}`);
 

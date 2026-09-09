@@ -26,6 +26,10 @@ on:
         description: 'Opcional: un solo slice tipo:origen (ej. EGR:MAN)'
         required: false
         default: ''
+      sin:
+        description: 'Opcional: slices a excluir, separados por coma (ej. "EGR:" = ventas POS, pesado)'
+        required: false
+        default: ''
 
 # Nunca dos corridas a la vez contra Contifico (las descargas se serializan del lado de ellos)
 concurrency:
@@ -79,12 +83,20 @@ jobs:
             if [ "$(date -u +%u)" = "7" ]; then
               npx tsx src/scripts/scrape-mov-inventario.ts --desde "$(date -u -d '30 days ago' +%d/%m/%Y)" --hasta "$(date -u +%d/%m/%Y)" --modo semanal
             else
-              npx tsx src/scripts/scrape-mov-inventario.ts
+              # Diario en dos pasadas (09-sep-2026). Contabilidad corrige ingresos días después de
+              # su fecha (caso MORA 05-sep, corregido el 08-sep) y bodega registra documentos con
+              # fecha atrasada: con la ventana [ayer, hoy] esas correcciones solo entraban el
+              # domingo. Los movimientos livianos (ING/TRA/AJU y EGR manuales) se bajan de los
+              # últimos 10 días —segundos por slice—; las ventas POS (EGR:Todos, minutos por día)
+              # siguen en [ayer, hoy] y el domingo cubre los 30 días completos.
+              npx tsx src/scripts/scrape-mov-inventario.ts --desde "$(date -u -d '10 days ago' +%d/%m/%Y)" --hasta "$(date -u +%d/%m/%Y)" --modo diario --sin "EGR:"
+              npx tsx src/scripts/scrape-mov-inventario.ts --desde "$(date -u -d '1 day ago' +%d/%m/%Y)" --hasta "$(date -u +%d/%m/%Y)" --modo diario --solo "EGR:"
             fi
           else
-            SOLO=""
+            SOLO=""; SIN=""
             if [ -n "${{ inputs.solo }}" ]; then SOLO="--solo ${{ inputs.solo }}"; fi
-            npx tsx src/scripts/scrape-mov-inventario.ts --desde "${{ inputs.desde }}" --hasta "${{ inputs.hasta }}" --modo "${{ inputs.modo }}" $SOLO
+            if [ -n "${{ inputs.sin }}" ]; then SIN="--sin ${{ inputs.sin }}"; fi
+            npx tsx src/scripts/scrape-mov-inventario.ts --desde "${{ inputs.desde }}" --hasta "${{ inputs.hasta }}" --modo "${{ inputs.modo }}" $SOLO $SIN
           fi
 
       # Lección PedidosYa: 105 fallos de login seguidos sin una sola captura guardada (el runner se limpia al
