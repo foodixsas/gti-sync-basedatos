@@ -55,10 +55,23 @@ async function abrirSesion(): Promise<APIRequestContext> {
   if (!secreto && !fs.existsSync(archivo)) {
     throw new Error('Falta la sesión de Uber: definir el secreto UBER_STORAGE_STATE o dejar uber-storage-state.json en el repo local');
   }
-  return pwRequest.newContext({
+  const api = await pwRequest.newContext({
     storageState: secreto ? JSON.parse(secreto) : archivo,
     extraHTTPHeaders: { 'x-csrf-token': 'x', 'content-type': 'application/json' },
   });
+
+  // La cookie jwt-session del portal vive ~1 hora. En el navegador se renueva sola
+  // al cargar una página; llamando sólo a GraphQL nunca se renueva y la sesión muere
+  // (verificado 18-sep: las corridas de 20:05 y 21:15 UTC pasaron, la de 21:45 dio
+  // 404 justo después de que venciera). Por eso se visita el portal primero: si Uber
+  // devuelve un jwt-session nuevo, el resto de la corrida lo usa.
+  const calentar = await api.get(`${BASE}/reports`, { timeout: 60_000 }).catch(() => null);
+  const url = calentar?.url() ?? '';
+  if (/auth\.uber\.com|\/login/i.test(url)) {
+    throw new Error(`Sesión de Uber caducada: el portal redirigió a ${url}. Volver a loguearse en el perfil y correr "npm run export-uber-session".`);
+  }
+  log('uber.cloud.sesion_ok', { status: calentar?.status() ?? null });
+  return api;
 }
 
 async function graphql<T>(api: APIRequestContext, op: string, query: string, variables: unknown): Promise<T> {

@@ -70,6 +70,13 @@ async function main() {
     extraHTTPHeaders: { 'x-csrf-token': 'x', 'content-type': 'application/json' },
   });
 
+  // La cookie jwt-session vive ~1 hora y en el navegador se renueva al cargar una
+  // página; llamando sólo a GraphQL nunca se renueva. Se visita el portal primero.
+  const calentar = await api.get(`${BASE}/reports`, { timeout: 60_000 }).catch(() => null);
+  if (/auth\.uber\.com|\/login/i.test(calentar?.url() ?? '')) {
+    throw new Error(`Sesión de Uber caducada: el portal redirigió a ${calentar?.url()}. Volver a loguearse y correr "npm run export-uber-session".`);
+  }
+
   try {
     const previos = await traerJobs(api);
     const tiendas = previos[0]?.jobParams?.restaurantUUIDs ?? [];
