@@ -18,7 +18,7 @@ import path from 'node:path';
 import * as XLSX from 'xlsx';
 import { createClient } from '@supabase/supabase-js';
 
-const CARPETA = path.resolve(process.cwd(), process.argv[2] || 'tmp-uber-manager-probe/muestras');
+const CARPETA = path.resolve(process.cwd(), process.argv[2] || 'tmp-uber-manager-probe/informes');
 
 const log = (ev: string, data: Record<string, unknown> = {}) =>
   console.log(JSON.stringify({ ev, ts: new Date().toISOString(), ...data }));
