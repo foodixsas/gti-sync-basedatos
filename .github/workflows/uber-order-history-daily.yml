@@ -1,4 +1,4 @@
-name: Uber Eats — Historial de pedidos (diario)
+name: Uber Eats — carga diaria (pedidos, operaciones y opiniones)
 
 # Pide el informe a Uber, espera a que lo genere, lo baja y lo carga en Supabase.
 # No usa navegador: los tres pasos son HTTP contra el portal de comercios, con la
@@ -57,11 +57,32 @@ jobs:
         # y node aborta con exit 9 ("`.env.local`: not found") antes de arrancar.
         run: npm run --silent import-uber-orders-ci
 
+      # Los 8 informes de Operaciones y Opiniones. Van después de los pedidos y con
+      # continue-on-error: si Uber demora uno, no se pierde la carga de pedidos, que
+      # es la crítica. La ventana de 7 días hace que mañana se recupere solo.
+      - name: Pedir y bajar Operaciones y Opiniones
+        continue-on-error: true
+        env:
+          UBER_STORAGE_STATE: ${{ secrets.UBER_STORAGE_STATE }}
+          UBER_ESPERA_MAX_S: '900'
+          TZ: America/Guayaquil
+        run: npm run --silent download-uber-reports -- "${{ inputs.desde }}" "${{ inputs.hasta }}"
+
+      - name: Cargar Operaciones y Opiniones en Supabase
+        continue-on-error: true
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          TZ: America/Guayaquil
+        run: npm run --silent import-uber-reports-ci
+
       - name: Evidencia de la corrida
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: uber-order-history-${{ github.run_id }}
-          path: tmp-uber-manager-probe/*.csv
+          path: |
+            tmp-uber-manager-probe/*.csv
+            tmp-uber-manager-probe/informes/*.csv
           retention-days: 7
           if-no-files-found: ignore

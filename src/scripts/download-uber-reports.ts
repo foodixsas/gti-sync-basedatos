@@ -1,22 +1,25 @@
 #!/usr/bin/env tsx
 /**
- * Pide UNA muestra chica de cada informe de Uber Eats Manager y reporta sus
- * columnas reales.
+ * Pide los 8 informes de Operaciones y Opiniones de Uber Eats Manager y los baja.
  *
- * Para qué: antes de diseñar tablas en Supabase hay que ver los encabezados de
- * verdad. Uber traduce los nombres y cambia la traducción, así que inventar la
- * estructura desde el nombre del informe es garantía de rehacerlo.
+ * Sin navegador, igual que el de pedidos: SubmitReportJob por cada tipo, espera a
+ * que queden COMPLETED y baja cada CSV. Los deja como `<REPORT_TYPE_...>.csv` para
+ * que `import-uber-reports` sepa a qué tabla va cada uno.
  *
- * Uso:  npm run sample-uber-reports
- * Salida: tmp-uber-manager-probe/muestra-informes.json (columnas por informe)
- *         + los CSV crudos, para poder mirar filas de ejemplo.
+ * Cada informe tiene su propio rezago (Uber no cierra los datos al mismo ritmo),
+ * así que el fin del rango se recorta por tipo.
+ *
+ * Uso:  npm run download-uber-reports                        → últimos 7 días
+ *       npm run download-uber-reports 2026-06-01 2026-06-30  → rango (backfill)
+ * Salida: tmp-uber-manager-probe/informes/
  */
 import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { request as pwRequest, type APIRequestContext } from 'playwright';
 
-const OUT = path.resolve(process.cwd(), 'tmp-uber-manager-probe', 'muestras');
+const OUT = path.resolve(process.cwd(), 'tmp-uber-manager-probe', 'informes');
+const MAX_DIAS_ATRAS = 188;
 const BASE = 'https://merchants.ubereats.com/manager';
 const LOCALE = 'es-419';
 
@@ -40,6 +43,8 @@ const log = (ev: string, data: Record<string, unknown> = {}) =>
 const dormir = (ms: number) => new Promise<void>(r => setTimeout(r, ms));
 const aLocal = (d: Date) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}T00:00:00`;
+/** Nunca `new Date("YYYY-MM-DD")`: parsea UTC y en Ecuador resta un dia. */
+const desdeISO = (x: string) => { const [y, m, d] = x.split('-').map(Number); return new Date(y, m - 1, d); };
 const diasAtras = (n: number) => { const d = new Date(); d.setDate(d.getDate() - n); return d; };
 
 type Job = { jobUUID: string; jobStatus: string; reportTypes: string[]; jobParams?: { restaurantUUIDs?: string[] } };
@@ -70,11 +75,19 @@ async function main() {
     const tiendas = previos[0]?.jobParams?.restaurantUUIDs ?? [];
     if (!tiendas.length) throw new Error('No se pudo leer la lista de tiendas de ningún informe previo');
 
-    // Muestra corta: 3 días por informe, respetando el rezago propio de cada uno.
+    // Rango por argumento (backfill) o los últimos 7 días disponibles.
+    // Cada informe tiene su propio rezago, así que el fin se recorta por tipo:
+    // pedir una fecha que Uber todavía no cerró devuelve "Invalid or missing arguments".
+    const [argIni, argFin] = process.argv.slice(2).filter(Boolean);
     const pedidos = new Map<string, string>();  // tipo -> jobUUID
     for (const inf of INFORMES) {
-      const fin = diasAtras(inf.rezagoDias);
-      const ini = diasAtras(inf.rezagoDias + 3);
+      const finPedido = argFin ? desdeISO(argFin) : diasAtras(inf.rezagoDias);
+      const topeFin = diasAtras(inf.rezagoDias);
+      const fin = finPedido > topeFin ? topeFin : finPedido;
+      const iniPedido = argIni ? desdeISO(argIni) : diasAtras(inf.rezagoDias + 7);
+      const topeIni = diasAtras(MAX_DIAS_ATRAS);
+      const ini = iniPedido < topeIni ? topeIni : iniPedido;
+      if (ini >= fin) { log('informes.rango_vacio', { informe: inf.etiqueta }); continue; }
       const jobUUID = crypto.randomUUID();
       try {
         await graphql(api, 'SubmitReportJob', M_SUBMIT, {
@@ -84,10 +97,10 @@ async function main() {
           },
         });
         pedidos.set(inf.tipo, jobUUID);
-        log('muestra.pedido', { informe: inf.etiqueta, tipo: inf.tipo });
+        log('informes.pedido', { informe: inf.etiqueta, tipo: inf.tipo });
       } catch (e) {
         // Un informe que la cuenta no tiene habilitado no debe tumbar a los otros.
-        log('muestra.no_disponible', { informe: inf.etiqueta, motivo: e instanceof Error ? e.message.slice(0, 200) : String(e) });
+        log('informes.no_disponible', { informe: inf.etiqueta, motivo: e instanceof Error ? e.message.slice(0, 200) : String(e) });
       }
       await dormir(1200);
     }
@@ -102,7 +115,7 @@ async function main() {
         if (j?.jobStatus === 'REPORT_JOB_STATUS_COMPLETED') listos.set(tipo, uuid);
       }
       if (listos.size < pedidos.size) {
-        log('muestra.esperando', { listos: listos.size, de: pedidos.size, restanteS: Math.round((limite - Date.now()) / 1000) });
+        log('informes.esperando', { listos: listos.size, de: pedidos.size, restanteS: Math.round((limite - Date.now()) / 1000) });
         await dormir(30_000);
       }
     }
@@ -115,7 +128,7 @@ async function main() {
       if (!res.ok()) { resumen.push({ informe: inf.etiqueta, tipo: inf.tipo, estado: `descarga ${res.status()}` }); continue; }
       const csv = await res.text();
       const lineas = csv.trim().split(/\r?\n/);
-      const archivoCsv = path.join(OUT, `${inf.tipo}.csv`);
+      const archivoCsv = path.join(OUT, `${inf.tipo}.csv`);  // el importador lo busca por tipo
       fs.writeFileSync(archivoCsv, csv, 'utf8');
       resumen.push({
         informe: inf.etiqueta, tipo: inf.tipo, estado: 'ok',
@@ -126,14 +139,14 @@ async function main() {
       });
     }
 
-    fs.writeFileSync(path.join(OUT, 'muestra-informes.json'), JSON.stringify(resumen, null, 1));
-    log('muestra.lista', { archivo: path.join(OUT, 'muestra-informes.json'), informes: resumen.length });
+    fs.writeFileSync(path.join(OUT, 'informes-descargados.json'), JSON.stringify(resumen, null, 1));
+    log('informes.lista', { archivo: path.join(OUT, 'informes-descargados.json'), informes: resumen.length });
   } finally {
     await api.dispose();
   }
 }
 
 main().catch(error => {
-  log('muestra.error', { message: error instanceof Error ? error.message : String(error) });
+  log('informes.error', { message: error instanceof Error ? error.message : String(error) });
   process.exitCode = 1;
 });
