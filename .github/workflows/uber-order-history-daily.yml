@@ -53,7 +53,9 @@ jobs:
           TZ: America/Guayaquil
         # Si Uber todavía no generó el informe no hay CSV nuevo: el import recarga el
         # último y reporta filasNuevas 0. Es el latido, no un fallo.
-        run: npm run --silent import-uber-orders
+        # -ci = el mismo script sin --env-file: en el runner no existe .env.local
+        # y node aborta con exit 9 ("`.env.local`: not found") antes de arrancar.
+        run: npm run --silent import-uber-orders-ci
 
       - name: Evidencia de la corrida
         if: always()
