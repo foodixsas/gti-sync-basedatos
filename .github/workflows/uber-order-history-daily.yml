@@ -1,0 +1,65 @@
+name: Uber Eats — Historial de pedidos (diario)
+
+# Pide el informe a Uber, espera a que lo genere, lo baja y lo carga en Supabase.
+# No usa navegador: los tres pasos son HTTP contra el portal de comercios, con la
+# sesión que viaja en el secreto UBER_STORAGE_STATE.
+#
+# La ventana es de 7 días a propósito: si una corrida falla, la del día siguiente
+# vuelve a cubrir esas fechas. El import deduplica por (business_uuid, order_uuid).
+
+on:
+  schedule:
+    # 09:10 Ecuador (UTC-5) = 14:10 UTC. Uber cierra sus datos con 2 días de rezago,
+    # así que la hora exacta no es crítica.
+    - cron: '10 14 * * *'
+  workflow_dispatch:
+    inputs:
+      desde:
+        description: 'Fecha inicial YYYY-MM-DD (vacío = últimos 7 días disponibles)'
+        required: false
+      hasta:
+        description: 'Fecha final YYYY-MM-DD (máximo: hace 2 días)'
+        required: false
+
+concurrency:
+  group: uber-order-history
+  cancel-in-progress: false
+
+jobs:
+  cargar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - run: npm ci
+
+      - name: Pedir, esperar y bajar el informe
+        env:
+          UBER_STORAGE_STATE: ${{ secrets.UBER_STORAGE_STATE }}
+          UBER_ESPERA_MAX_S: '900'
+          TZ: America/Guayaquil
+        run: npm run --silent uber-cloud -- "${{ inputs.desde }}" "${{ inputs.hasta }}"
+
+      - name: Cargar en Supabase
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          TZ: America/Guayaquil
+        # Si Uber todavía no generó el informe no hay CSV nuevo: el import recarga el
+        # último y reporta filasNuevas 0. Es el latido, no un fallo.
+        run: npm run --silent import-uber-orders
+
+      - name: Evidencia de la corrida
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: uber-order-history-${{ github.run_id }}
+          path: tmp-uber-manager-probe/*.csv
+          retention-days: 7
+          if-no-files-found: ignore

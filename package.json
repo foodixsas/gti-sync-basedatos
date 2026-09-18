@@ -14,6 +14,12 @@
     "extract-otter-locales": "tsx --env-file=.env.local src/scripts/extract-otter-locales.ts",
     "hunt-otter-phone": "tsx --env-file=.env.local src/scripts/hunt-otter-phone.ts",
     "probe-uber-vs-py": "tsx --env-file=.env.local src/scripts/probe-otter-uber-vs-pedidosya.ts",
+    "probe-uber-manager": "tsx --env-file=.env.local src/scripts/probe-uber-manager.ts",
+    "export-uber-session": "tsx --env-file=.env.local src/scripts/export-uber-session.ts",
+    "uber-cloud": "tsx src/scripts/uber-order-history-cloud.ts",
+    "request-uber-orders": "tsx --env-file=.env.local src/scripts/request-uber-order-history.ts",
+    "download-uber-orders": "tsx --env-file=.env.local src/scripts/download-uber-order-history.ts",
+    "import-uber-orders": "tsx --env-file=.env.local src/scripts/import-uber-order-history.ts",
     "probe-backfill-mes": "tsx --env-file=.env.local src/scripts/probe-otter-backfill-mes.ts",
     "probe-graphql-list": "tsx --env-file=.env.local src/scripts/probe-otter-graphql-list.ts",
     "probe-listing-endpoint": "tsx --env-file=.env.local src/scripts/probe-otter-listing-endpoint.ts",
@@ -57,7 +63,8 @@
     "test-replay": "tsx --env-file=.env.local src/scripts/test-replay.ts",
     "backfill-invoice-lines": "tsx --env-file=.env.local src/scripts/backfill-invoice-lines.ts",
     "probe-pedidosya-historico": "tsx --env-file=.env.local src/scripts/probe-pedidosya-historico-real.ts",
-    "backfill-pedidosya": "NODE_OPTIONS='--max-old-space-size=4096' tsx --env-file=.env.local src/scripts/backfill-pedidosya.ts"
+    "backfill-pedidosya": "NODE_OPTIONS='--max-old-space-size=4096' tsx --env-file=.env.local src/scripts/backfill-pedidosya.ts",
+    "uber-diario": "bash scripts/uber-order-history-diario.sh"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.49.1",
