@@ -38,10 +38,10 @@ async function main() {
     filename: path.basename(csvPath), file_sha256: hash,
     source_url: 'https://merchants.ubereats.com/manager/reports', raw_csv: raw.toString('utf8'),
   };
-  const { count: antes } = await supabase.from('orders').select('*', { count: 'exact', head: true });
+  const { count: antes } = await supabase.from('uber_pedidos').select('*', { count: 'exact', head: true });
 
   const { data: inserted, error: reportError } = await supabase
-    .from('order_history_reports')
+    .from('uber_informes')
     .upsert(report, { onConflict: 'file_sha256' })
     .select('id')
     .single();
@@ -121,16 +121,16 @@ async function main() {
   }
 
   for (let i = 0; i < mapped.length; i += 500) {
-    const { error } = await supabase.from('orders').upsert(mapped.slice(i, i + 500), { onConflict: 'business_uuid,order_uuid' });
+    const { error } = await supabase.from('uber_pedidos').upsert(mapped.slice(i, i + 500), { onConflict: 'business_uuid,order_uuid' });
     if (error) throw error;
   }
-  await supabase.from('order_history_reports').update({ rows_loaded: mapped.length }).eq('id', reportId);
+  await supabase.from('uber_informes').update({ rows_loaded: mapped.length }).eq('id', reportId);
 
   // Latido con producción medida: sin esto no se distingue "corrió y no había nada nuevo"
   // de "corrió y no guardó nada".
-  const { count: despues } = await supabase.from('orders').select('*', { count: 'exact', head: true });
+  const { count: despues } = await supabase.from('uber_pedidos').select('*', { count: 'exact', head: true });
   const { data: ultimo } = await supabase
-    .from('orders').select('customer_order_at')
+    .from('uber_pedidos').select('customer_order_at')
     .order('customer_order_at', { ascending: false }).limit(1).maybeSingle();
 
   log('uber.order_history.imported', {
