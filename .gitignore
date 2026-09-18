@@ -2,6 +2,8 @@ node_modules/
 dist/
 .env.local
 tmp-downloads/
+tmp-uber-manager-profile/
+tmp-uber-manager-probe/
 *.log
 *.xls
 
@@ -16,3 +18,6 @@ pedidosya-templates.json
 
 # macOS
 .DS_Store
+
+# Sesion de Uber Eats Manager (credencial)
+uber-storage-state.json
