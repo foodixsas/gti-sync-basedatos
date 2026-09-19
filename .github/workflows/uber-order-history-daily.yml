@@ -12,6 +12,10 @@ on:
     # 09:10 Ecuador (UTC-5) = 14:10 UTC. Uber cierra sus datos con 2 días de rezago,
     # así que la hora exacta no es crítica.
     - cron: '10 14 * * *'
+    # Segundo disparo 45 min después: el 19-sep GitHub no ejecutó el de las 14:10 y hubo
+    # que lanzarlo a mano. El pipeline es idempotente (reusa el informe ya pedido y hace
+    # upsert), así que si el primero corrió, el segundo no duplica nada.
+    - cron: '55 14 * * *'
   workflow_dispatch:
     inputs:
       desde:
