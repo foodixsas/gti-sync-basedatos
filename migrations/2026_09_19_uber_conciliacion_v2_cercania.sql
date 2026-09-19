@@ -43,17 +43,28 @@ WITH u AS (
   WHERE NOT d.anulado AND d.fecha_emision >= (SELECT min(order_date_local) FROM ubereats_raw.uber_pedidos)
   GROUP BY 1, 2, 3, 4
 ),
--- Pases 1–3: código exacto
-ex AS (
-  SELECT DISTINCT ON (u.uber_id) u.uber_id, c.documento_id,
-         CASE WHEN c.canal = 'UBER EATS' AND c.fecha_emision = u.order_date_local THEN 'exacto'
-              WHEN c.canal = 'UBER EATS' THEN 'exacto_dia_siguiente'
-              ELSE 'exacto_otro_canal' END AS metodo
+-- Pases 1–3: código exacto. Primero mismo día (UBER EATS); las facturas ya usadas ahí no se
+-- reparten al día siguiente (evita que un mismo código en dos días consecutivos comparta factura).
+ex_dia AS (
+  SELECT DISTINCT ON (u.uber_id) u.uber_id, c.documento_id, 'exacto'::text AS metodo
   FROM u
   JOIN c ON c.local = u.local_contifico AND c.codigo_factura = u.codigo_uber
+        AND c.fecha_emision = u.order_date_local AND c.canal = 'UBER EATS'
+  ORDER BY u.uber_id, c.hora_emision
+),
+ex_resto AS (
+  SELECT DISTINCT ON (u.uber_id) u.uber_id, c.documento_id,
+         CASE WHEN c.canal = 'UBER EATS' THEN 'exacto_dia_siguiente' ELSE 'exacto_otro_canal' END AS metodo
+  FROM u
+  LEFT JOIN ex_dia ed ON ed.uber_id = u.uber_id
+  JOIN c ON c.local = u.local_contifico AND c.codigo_factura = u.codigo_uber
         AND c.fecha_emision BETWEEN u.order_date_local AND u.order_date_local + 1
+        AND NOT (c.canal = 'UBER EATS' AND c.fecha_emision = u.order_date_local)
+  LEFT JOIN ex_dia x ON x.documento_id = c.documento_id
+  WHERE ed.uber_id IS NULL AND x.documento_id IS NULL
   ORDER BY u.uber_id, (c.canal = 'UBER EATS') DESC, c.fecha_emision, c.hora_emision
 ),
+ex AS (SELECT * FROM ex_dia UNION ALL SELECT * FROM ex_resto),
 sob1 AS (SELECT u.* FROM u LEFT JOIN ex ON ex.uber_id = u.uber_id WHERE ex.uber_id IS NULL),
 lib1 AS (
   SELECT c.* FROM c LEFT JOIN ex x ON x.documento_id = c.documento_id
