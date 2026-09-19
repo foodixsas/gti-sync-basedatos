@@ -55,12 +55,18 @@ WITH u AS (
 ),
 -- Pases 1–3: código exacto. Primero mismo día (UBER EATS); las facturas ya usadas ahí no se
 -- reparten al día siguiente (evita que un mismo código en dos días consecutivos comparta factura).
-ex_dia AS (
-  SELECT DISTINCT ON (u.uber_id) u.uber_id, c.documento_id, 'exacto'::text AS metodo
+ex_dia_0 AS (
+  SELECT DISTINCT ON (u.uber_id) u.uber_id, c.documento_id, 'exacto'::text AS metodo,
+         abs(EXTRACT(EPOCH FROM ((c.fecha_emision + c.hora_emision) - u.customer_order_at))) AS seg
   FROM u
   JOIN c ON c.local = u.local_contifico AND c.codigo_factura = u.codigo_uber
         AND c.fecha_emision = u.order_date_local AND c.canal = 'UBER EATS'
   ORDER BY u.uber_id, c.hora_emision
+),
+-- Dos pedidos con el mismo código el mismo día (pasa: Floreana 16-sep, 78758) no comparten factura:
+-- se queda el más cercano en hora y el otro sigue a los pases siguientes.
+ex_dia AS (
+  SELECT DISTINCT ON (documento_id) uber_id, documento_id, metodo FROM ex_dia_0 ORDER BY documento_id, seg
 ),
 ex_resto AS (
   SELECT DISTINCT ON (u.uber_id) u.uber_id, c.documento_id,
