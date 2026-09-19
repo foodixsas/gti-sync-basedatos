@@ -18,8 +18,18 @@
 --
 -- Pasa a vista MATERIALIZADA porque agrupa las facturas por documento (unidades) desde marzo;
 -- se refresca con ubereats_raw.uber_refresh_conciliacion() al terminar cada carga y cada hora.
-DROP VIEW IF EXISTS ubereats_raw.uber_conciliacion_contifico;
-DROP MATERIALIZED VIEW IF EXISTS ubereats_raw.uber_conciliacion_contifico;
+-- Puede existir como vista (v1) o como materializada (v2): DROP VIEW falla sobre una MV y viceversa.
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+             WHERE n.nspname = 'ubereats_raw' AND c.relname = 'uber_conciliacion_contifico' AND c.relkind = 'v') THEN
+    EXECUTE 'DROP VIEW ubereats_raw.uber_conciliacion_contifico';
+  END IF;
+  IF EXISTS (SELECT 1 FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+             WHERE n.nspname = 'ubereats_raw' AND c.relname = 'uber_conciliacion_contifico' AND c.relkind = 'm') THEN
+    EXECUTE 'DROP MATERIALIZED VIEW ubereats_raw.uber_conciliacion_contifico';
+  END IF;
+END $$;
 
 CREATE MATERIALIZED VIEW ubereats_raw.uber_conciliacion_contifico AS
 WITH u AS (
