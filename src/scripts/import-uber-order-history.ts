@@ -141,6 +141,12 @@ async function main() {
     ultimoPedido: ultimo?.customer_order_at ?? null,
     periodStart: report.period_start, periodEnd: report.period_end,
   });
+
+  // La conciliación es una vista materializada: se refresca acá, recién cargados los pedidos,
+  // para que el informe de códigos de las 09:45 hable de lo que acaba de llegar y no de ayer.
+  const { data: refresco, error: errRefresco } = await supabase.rpc('uber_refresh_conciliacion');
+  if (errRefresco) log('uber.conciliacion.refresh_error', { message: errRefresco.message, code: errRefresco.code });
+  else log('uber.conciliacion.refrescada', (refresco ?? {}) as Record<string, unknown>);
 }
 
 main().catch(error => {
