@@ -1,6 +1,7 @@
 #!/usr/bin/env tsx
 /**
- * Carga en Supabase los informes de Operaciones y Opiniones de Uber Eats.
+ * Carga en Supabase los informes de Operaciones, Opiniones y Detalles de pago
+ * de Uber Eats.
  *
  * Lee los CSV de una carpeta (por defecto tmp-uber-manager-probe/muestras),
  * nombrados `<REPORT_TYPE_...>.csv`, y manda cada uno a su tabla.
@@ -28,6 +29,11 @@ const txt = (v: unknown) => clean(v) || null;
 const num = (v: unknown) => { const n = Number(clean(v).replace(/[^0-9.,-]/g, '').replace(',', '.')); return Number.isFinite(n) && clean(v) !== '' ? n : null; };
 const fecha = (v: unknown) => { const s = clean(v); return /^\d{4}-\d{2}-\d{2}/.test(s) ? s.slice(0, 10) : null; };
 const ts = (v: unknown) => { const s = clean(v); return /^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}/.test(s) ? s.slice(0, 19).replace('T', ' ') : null; };
+/** El informe de pagos trae la fecha como dd/mm/aa ('15/09/26'). */
+const fechaCorta = (v: unknown) => {
+  const m = clean(v).match(/^(\d{2})\/(\d{2})\/(\d{2})$/);
+  return m ? `20${m[3]}-${m[2]}-${m[1]}` : fecha(v);
+};
 const uuid = (v: unknown) => { const s = clean(v); return /^[0-9a-f]{8}-[0-9a-f]{4}-/i.test(s) ? s : null; };
 
 /** Uber manda las tildes en NFD: 'único' del archivo no es igual a 'único' escrito acá. */
@@ -51,6 +57,10 @@ type Definicion = {
   conflicto: string;
   /** columnas cuyo valor vacío significa que el encabezado cambió */
   obligatorias: string[];
+  /** filas a saltar antes del encabezado real (pagos trae una fila de descripciones arriba) */
+  saltarFilas?: number;
+  /** encabezados que deben existir: montos donde un vacío (0) no delataría el renombre */
+  encabezados?: string[];
   fila: (c: Buscador, cruda: Fila) => Record<string, unknown>;
 };
 
@@ -213,6 +223,66 @@ const DEFINICIONES: Record<string, Definicion> = {
       fila_cruda: cruda,
     }),
   },
+  REPORT_TYPE_PAYMENT_DETAILS_REPORT: {
+    // Primera fila = descripción larga de cada columna; la segunda es el encabezado.
+    // Llave verificada sin repetidos en 1.698 filas (11 al 22-sep-2026). No lleva
+    // fecha de pago ni referencia: el pedido llega pendiente y se liquida días
+    // después; así el upsert actualiza la fila en vez de duplicarla.
+    tabla: 'uber_pagos', conflicto: 'llave', obligatorias: ['tienda', 'tienda_uuid', 'pedido_fecha', 'llave'],
+    saltarFilas: 1,
+    encabezados: ['Pago total', 'Tasa de servicio (sin IVA)', 'Ajuste de marketing (con IVA)', 'Ventas (con IVA)', 'Promociones en artículos (con IVA)'],
+    fila: (c, cruda) => {
+      const f = {
+        tienda: clean(c('Nombre de la tienda')),
+        tienda_codigo_externo: txt(c('ID externo de la tienda')),
+        tienda_uuid: uuid(c('UUID de la tienda')),
+        pedido_codigo: txt(c('Id. del pedido')),
+        flujo_uuid: uuid(c('Id. del flujo de trabajo')),
+        pedido_fecha: fechaCorta(c('Fecha del pedido')),
+        aceptado_hora: txt(c('Hora a la que se aceptó el pedido')),
+        completado_at: ts(c('Hora de finalización del pedido')),
+        modalidad: txt(c('Modalidad de consumo')),
+        canal: txt(c('Canal de pedidos')),
+        estado: txt(c('Estado del pedido')),
+        membresia_uber: txt(c('Estado de la membresía de Uber del usuario')),
+        moneda: txt(c('Código de moneda')),
+        ventas_con_iva: num(c('Ventas (con IVA)')),
+        iva_ventas: num(c('IVA sobre las ventas')),
+        cargo_error_sin_iva: num(c('Cargo por error en el pedido (sin IVA)')),
+        iva_cargo_error: num(c('IVA sobre el cargo por error en el pedido')),
+        cargo_error_con_iva: num(c('Cargo por error en el pedido (con impuestos)')),
+        ajuste_precios_sin_iva: num(c('Ajustes en los precios (sin IVA)')),
+        iva_ajuste_precios: num(c('IVA sobre ajustes de costo')),
+        promociones_articulos: num(c('Promociones en artículos (con IVA)')),
+        tarifa_canje_oferta: num(c('Tarifa por canje de la oferta')),
+        iva_tarifa_canje_oferta: num(c('Impuesto sobre la tarifa de canje de la oferta')),
+        ajuste_marketing: num(c('Ajuste de marketing (con IVA)')),
+        cupon_comida: num(c('Cupón de comida')),
+        cupon_proveedor: txt(c('Proveedor de cupones de comida')),
+        ventas_despues_ajustes: num(c('Ventas totales después de los ajustes (con IVA)')),
+        promociones_envio: num(c('Canjes de oferta de entrega (con IVA)')),
+        tasa_servicio_sin_iva: num(c('Tasa de servicio (sin IVA)')),
+        iva_tasa_servicio: num(c('IVA sobre la tasa de servicio')),
+        retencion_iva: num(c('Retenciones de IVA')),
+        retencion_renta: num(c('Retención del impuesto sobre la renta')),
+        tarifa_solicitud: num(c('Tarifa de solicitud (con IVA)')),
+        propinas: num(c('Montos propinas')),
+        otros_pagos_descripcion: txt(c('Descripción de otros pagos')),
+        otras_ganancias: num(c('Otras ganancias')),
+        efectivo_recibido: num(c('Efectivo recibido')),
+        embargo: num(c('Embargo')),
+        pago_total: num(c('Pago total')),
+        pago_fecha: fechaCorta(c('Fecha de pago')),
+        factura_url: txt(c('Enlace de la factura U2R')),
+        referencia_ganancias: txt(c('Id. de referencia de ganancias')),
+        fila_cruda: cruda,
+      };
+      const llave = f.tienda_uuid && f.pedido_fecha
+        ? [f.tienda_uuid, f.flujo_uuid ?? '', f.estado ?? '', f.pedido_fecha, f.otros_pagos_descripcion ?? ''].join('|')
+        : null;
+      return { ...f, llave };
+    },
+  },
   REPORT_TYPE_STORE_AVAILABILITY_REPORT: {
     tabla: 'uber_eventos_indisponibilidad', conflicto: 'fuente,tienda,inicio_local',
     obligatorias: ['tienda', 'inicio_local'],
@@ -246,11 +316,18 @@ async function main() {
     const bruto = fs.readFileSync(path.join(CARPETA, archivo));
     // raw:true: con raw:false la librería reinterpreta las fechas como serial de Excel.
     const libro = XLSX.read(bruto.toString('utf8'), { type: 'string', raw: true });
-    const filas = XLSX.utils.sheet_to_json<Fila>(libro.Sheets[libro.SheetNames[0]], { defval: '', raw: true });
+    const filas = XLSX.utils.sheet_to_json<Fila>(libro.Sheets[libro.SheetNames[0]], {
+      defval: '', raw: true, ...(def.saltarFilas ? { range: def.saltarFilas } : {}),
+    });
     if (!filas.length) { resumen.push({ tipo, tabla: def.tabla, filas: 0, nota: 'CSV sin filas' }); continue; }
 
     const columnas = new Map<string, string>();
     for (const k of Object.keys(filas[0])) columnas.set(norm(clean(k)), k);
+
+    const faltan = (def.encabezados ?? []).filter(h => !columnas.has(norm(h)));
+    if (faltan.length) {
+      throw new Error(`${tipo}: faltan encabezados ${faltan.join(' | ')}. Columnas recibidas: ${Object.keys(filas[0]).join(' | ')}`);
+    }
 
     const { data: informe, error: errInforme } = await supabase
       .from('uber_informes')

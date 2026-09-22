@@ -1,4 +1,4 @@
-name: Uber Eats — carga diaria (pedidos, operaciones y opiniones)
+name: Uber Eats — carga diaria (pedidos, operaciones, opiniones y pagos)
 
 # Pide el informe a Uber, espera a que lo genere, lo baja y lo carga en Supabase.
 # No usa navegador: los tres pasos son HTTP contra el portal de comercios, con la
@@ -61,10 +61,11 @@ jobs:
         # y node aborta con exit 9 ("`.env.local`: not found") antes de arrancar.
         run: npm run --silent import-uber-orders-ci
 
-      # Los 8 informes de Operaciones y Opiniones. Van después de los pedidos y con
+      # Los 8 informes de Operaciones y Opiniones + Detalles de pago (comisión real y
+      # lo que Uber cofinancia en promociones → ubereats_raw.uber_pagos). Van después de los pedidos y con
       # continue-on-error: si Uber demora uno, no se pierde la carga de pedidos, que
       # es la crítica. La ventana de 7 días hace que mañana se recupere solo.
-      - name: Pedir y bajar Operaciones y Opiniones
+      - name: Pedir y bajar Operaciones, Opiniones y Pagos
         continue-on-error: true
         env:
           UBER_STORAGE_STATE: ${{ secrets.UBER_STORAGE_STATE }}
@@ -72,7 +73,7 @@ jobs:
           TZ: America/Guayaquil
         run: npm run --silent download-uber-reports -- "${{ inputs.desde }}" "${{ inputs.hasta }}"
 
-      - name: Cargar Operaciones y Opiniones en Supabase
+      - name: Cargar Operaciones, Opiniones y Pagos en Supabase
         continue-on-error: true
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
