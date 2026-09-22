@@ -1,6 +1,6 @@
 #!/usr/bin/env tsx
 /**
- * Pide los 8 informes de Operaciones y Opiniones de Uber Eats Manager y los baja.
+ * Pide los 8 informes de Operaciones y Opiniones, más el de Detalles de pago, de Uber Eats Manager y los baja.
  *
  * Sin navegador, igual que el de pedidos: SubmitReportJob por cada tipo, espera a
  * que queden COMPLETED y baja cada CSV. Los deja como `<REPORT_TYPE_...>.csv` para
@@ -33,6 +33,9 @@ const INFORMES = [
   { etiqueta: 'Disponibilidad del negocio',            tipo: 'REPORT_TYPE_STORE_AVAILABILITY_REPORT',   rezagoDias: 2 },
   { etiqueta: 'Opiniones de usuarios y repartidores',  tipo: 'REPORT_TYPE_EATER_COURIER_RATING_REPORT', rezagoDias: 2 },
   { etiqueta: 'Opiniones sobre artículos del menú',    tipo: 'REPORT_TYPE_MENU_ITEM_RATING_REPORT',     rezagoDias: 2 },
+  // Pagos: lo que Uber liquida por pedido (comisión, promociones, lo que pone cada
+  // parte). Sin rezago en el portal; la ventana de 7 días recoge los ajustes tardíos.
+  { etiqueta: 'Detalles de pago',                       tipo: 'REPORT_TYPE_PAYMENT_DETAILS_REPORT',      rezagoDias: 0 },
 ];
 
 const Q_JOBS = 'query GetReportJobs($limit: Int) {\n  reportJobs(limit: $limit) {\n    reportJobs {\n      jobUUID\n      jobStatus\n      reportTypes\n      createdAtUnixMs\n      jobParams {\n        restaurantUUIDs\n        startAtLocal\n        endAtLocal\n      }\n    }\n  }\n}\n';
