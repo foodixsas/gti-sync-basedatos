@@ -1,0 +1,1020 @@
+# Plan de cuentas (contabilidad/cuenta/, 22-sep-2026) — extraído del HTML
+1.1 Activo Corriente
+1.1.1 Efectivo y Equivalentes a Efectivo
+1.1.1.1 Caja
+1.1.1.2 Caja Chica
+1.1.1.2.1 Caja Chica Portugal
+1.1.1.2.2 Caja Chica Real
+1.1.1.2.3 Caja Chica Floreana
+1.1.1.2.4 Caja Chica Compras (bodega)
+1.1.1.2.5 Caja Chica gastos Administrativos Gerencia
+1.1.1.2.6 Caja Chica Simon Bolon
+1.1.1.2.7 Caja Chica RR.HH
+1.1.1.2.8 Caja Chica Marketing
+1.1.1.2.9 Caja Chica Santo Cachon Real
+1.1.1.2.10 Caja Chica Calidad
+1.1.1.2.11 Caja Chica Santo Cachon Portugal
+1.1.1.3 Bancos
+1.1.1.3.1 Banco Produbanco CC <nro>
+1.1.1.3.2 Banco Pichincha CC <nro>
+1.1.1.3.3 Banco Produbanco CC <nro> Daniel Chamorro TC
+1.1.1.3.4 Banco del Austro CC <nro> Daniel Chamorro TC
+1.1.1.3.5 Banco Guayaquil CC <nro>
+1.1.1.3.6 Banco DEUNA
+1.1.1.3.7 Banco Produbanco Ahorro Programado
+1.1.1.3.8 Banco JUSTO
+1.1.1.3.9 Banco Internacional CC <nro>
+1.1.1.3.10 Banco Bolivariano CC <nro>
+1.1.1.4 Banco dinero electrónico
+1.1.1.5 Caja del Punto de venta
+1.1.1.5.1 Caja Punto de venta Floreana 003-001
+1.1.1.5.2 Caja Punto de venta Floreana 003-002
+1.1.1.5.3 Caja Punto de venta Real Audiencia 002-001
+1.1.1.5.4 Caja Punto de venta Portugal 004-001
+1.1.1.5.5 Caja Punto de venta Portugal 004-002
+1.1.1.5.6 Caja Punto de venta Real Audiencia 002-002
+1.1.1.5.7 Caja Punto de venta Simón Bolón 005-001
+1.1.1.5.8 Caja Punto de Venta Simón Bolón 005-002
+1.1.1.5.9 Caja Punto de Venta Santo Cachon 006-001
+1.1.1.5.10 Caja Punto de venta Portugal 007-001
+1.1.1.5.11 Diferencias en cajas 2025
+1.1.1.6 Egreso de Caja del Punto de venta
+1.1.1.6.1 Egreso de Caja del Punto de venta 01
+1.1.1.6.2 Egreso de Caja del Punto de venta 02
+1.1.1.6.3 Egreso de Caja del Punto de venta 03
+1.1.1.6.4 Egreso de Caja del Punto de venta 04
+1.1.1.6.5 Egreso de Caja del Punto de venta 05
+1.1.1.6.6 Egreso de Caja del Punto de venta 06
+1.1.1.6.7 Egreso de Caja del Punto de venta Simon Bolon 005-002
+1.1.1.6.8 Egreso de Caja del Punto de venta 07
+1.1.1.7 Fondo Rotativo
+1.1.1.8 Caja Pronto
+1.1.2 Activos Financieros
+1.1.2.1 Activos Financieros con cambios en resultados
+1.1.2.2 Activos Financieros Disponibles para la Venta
+1.1.2.3 Activos Financieros mantenidos hasta el vencimiento
+1.1.2.5 Cuentas por Cobrar
+1.1.2.5.1 Clientes Comerciales
+1.1.2.5.2 Clientes Comerciales Exterior
+1.1.2.5.3 Cuentas por cobrar a Socios o Accionistas
+1.1.2.5.4 Funcionarios y/o Empleados
+1.1.2.5.4.1 Anticipos a Empleados
+1.1.2.5.4.2 Préstamos a Empleados
+1.1.2.5.4.3 Multas a Empleados
+1.1.2.5.4.4 Restitución de Productos Empleados (Inv)
+1.1.2.5.4.5 Consumo de Productos Empleados
+1.1.2.5.4.6 Por cobrar a Empledos Diferencias cajas
+1.1.2.5.4.7 Otros Descuentos a Empleados
+1.1.2.5.4.8 Anticipos Otros beneficios a Empleados
+1.1.2.5.4.9 Anticipo de Nómina Empleados (quincena)
+1.1.2.5.4.10 Descuentos Diferencias en Plataforma Empleados
+1.1.2.5.5 Compañías Relacionadas
+1.1.2.5.6 Cheques por Cobrar
+1.1.2.5.7 Tarjeta de crédito (Cobro)
+1.1.2.5.7.1 Dataexpress
+1.1.2.5.7.1.1 Dataexpress - Real Audiencia
+1.1.2.5.7.1.2 Dataexpress - Floreana
+1.1.2.5.7.1.3 Dataexpress - Portugal
+1.1.2.5.7.1.4 DataExpress - Viche Pez
+1.1.2.5.7.1.5 DataExpress - Simon Bolon
+1.1.2.5.7.1.6 DataExpress POS Portugal
+1.1.2.5.7.2 Medianet
+1.1.2.5.7.2.1 Medianet - Real Audiencia
+1.1.2.5.7.2.2 Medianet - Floreana
+1.1.2.5.7.2.3 Medianet - Portugal
+1.1.2.5.7.2.4 MEDIANET API
+1.1.2.5.7.2.5 Medianet - Viche Pez
+1.1.2.5.7.2.6 Medianet - Simon Bolon
+1.1.2.5.7.2.7 Medianet POS Portugal
+1.1.2.5.7.3 Datafast
+1.1.2.5.7.3.1 Datafast - Real Audiencia
+1.1.2.5.7.3.2 Datafast - Floreana
+1.1.2.5.7.3.3 Datafast - Portugal
+1.1.2.5.7.3.4 DATAFAST API
+1.1.2.5.7.3.5 Datafast - Viche Pez
+1.1.2.5.7.3.6 Datafast - Simon Bolon
+1.1.2.5.7.3.7 Datafast POS Portugal
+1.1.2.5.8 Transferencias Bancarias en Tránsito
+1.1.2.5.9 Provisión Ingresos por facturar
+1.1.2.5.10 Depósitos de plazo fijo
+1.1.2.5.11 Datafast Pronto
+1.1.2.5.12 Medianet Pronto
+1.1.2.5.13 Fidelizaciones Externas
+1.1.2.5.14 Propinas por cobrar TC
+1.1.2.5.15 Cuentas por Cobrar Retenciones
+1.1.2.6 Documentos por Cobrar
+1.1.2.6.1 Clientes Comerciales (Documentos por Cobrar)
+1.1.2.6.2 Socios o Accionistas
+1.1.2.6.3 Funcionarios y/o Empleados
+1.1.2.6.4 Compañías Relacionadas
+1.1.2.7 Otras Cuentas por Cobrar
+1.1.2.7.1 Plataformas - Delivery
+1.1.2.7.1.1 Rappi
+1.1.2.7.1.1.1 Rappi - Real Audiencia
+1.1.2.7.1.1.2 Rappi - Floreana
+1.1.2.7.1.1.3 Rappi - Portugal
+1.1.2.7.1.1.4 Rappi - Simon Bolon
+1.1.2.7.1.1.5 Rappi - Santo Cachon
+1.1.2.7.1.1.6 Rappi - Santo Cachon Portugal
+1.1.2.7.1.2 Pedidos Ya
+1.1.2.7.1.2.1 Pedidos Ya - Real Audiencia
+1.1.2.7.1.2.2 Pedidos Ya - Floreana
+1.1.2.7.1.2.3 Pedidos Ya - Portugal
+1.1.2.7.1.2.4 Pedidos Ya - Simon Bolon
+1.1.2.7.1.2.5 Pedidos Ya - Santo Cachon
+1.1.2.7.1.2.6 Pedidos Ya - Santo Cachon Portugal
+1.1.2.7.1.3 Uber
+1.1.2.7.1.3.1 Uber - Real Audiencia
+1.1.2.7.1.3.2 Uber - Floreana
+1.1.2.7.1.3.3 Uber - Portugal
+1.1.2.7.1.3.4 Uber - Simón Bolón
+1.1.2.7.1.3.5 Uber - Santo Cachon
+1.1.2.7.1.3.6 Uber - Santo Cachon Portugal
+1.1.2.7.1.4 SuperEasy
+1.1.2.7.1.5 Picker
+1.1.2.7.1.6 Cuenta por Cobrar (Tarjetas de Crédito) Otros del Punto de venta
+1.1.2.7.2 Cuenta por Cobrar (Tarjetas de Crédito) del Punto de venta
+1.1.2.7.2.1 Cuenta por Cobrar (Tarjetas de Crédito) Datafast del Punto de venta
+1.1.2.7.2.1.1 Datafast Punto de venta Floreana 003-001
+1.1.2.7.2.1.2 Cuenta por Cobrar (Tarjetas de Crédito) Datafast del Punto de venta 02
+1.1.2.7.2.1.3 Datafast Punto de venta Real Audiencia 002-001
+1.1.2.7.2.1.4 Datafast Punto de venta Portugal 004-001
+1.1.2.7.2.1.5 Cuenta por Cobrar (Tarjetas de Crédito) Datafast del Punto de venta 05
+1.1.2.7.2.1.6 Datafast Punto de venta Real Audiencia 002-002
+1.1.2.7.2.1.7 Datafast Punto de venta Santo Cachon 006-001
+1.1.2.7.2.1.8 Datafast Punto de venta Santo Cachon Portugal 007-001
+1.1.2.7.2.2 Cuenta por Cobrar (Tarjetas de Crédito) Medianet del Punto de venta
+1.1.2.7.2.2.1 Medianet Punto de venta Floreana 003-001
+1.1.2.7.2.2.2 Cuenta por Cobrar (Tarjetas de Crédito) Medianet del Punto de venta 02
+1.1.2.7.2.2.3 Medianet Punto de venta Real Audiencia 002-001
+1.1.2.7.2.2.4 Medianet Punto de venta Portugal 004-001
+1.1.2.7.2.2.5 Cuenta por Cobrar (Tarjetas de Crédito) Medianet del Punto de venta 05
+1.1.2.7.2.2.6 Medianet Punto de venta Real Audiencia 002-002
+1.1.2.7.2.2.7 Medianet Punto de Venta Santo Cachon 006-001
+1.1.2.7.2.2.8 Medianet Punto de Venta Santo Cachon Portugal 007-001
+1.1.2.7.2.3 Cuenta por Cobrar (Tarjetas de Crédito) DataExpress del Punto de venta
+1.1.2.7.2.3.1 DataExpress del Punto de venta Floreana 003-001
+1.1.2.7.2.3.2 Cuenta por Cobrar (Tarjetas de Crédito) DataExpress del Punto de venta 02
+1.1.2.7.2.3.3 DataExpress del Punto de venta Real Audiencia 002-001
+1.1.2.7.2.3.4 DataExpress del Punto de venta Portugal 004-001
+1.1.2.7.2.3.5 Cuenta por Cobrar (Tarjetas de Crédito) DataExpress del Punto de venta 05
+1.1.2.7.2.3.6 DataExpress del Punto de venta Real Audiencia 002-002
+1.1.2.7.2.3.7 DataExpress del Punto de venta Santo Cachon 006-001
+1.1.2.7.2.3.8 DataExpress del Punto de venta Santo Cachon Portugal 007-001
+1.1.2.7.3 Cuentas por Cobrar Chios - Daniel Chamorro TC
+1.1.2.7.4 Cuentas por Cobrar Chios - DCH Transferencias
+1.1.2.7.5 Cuentas por cobrar - FOODZAGROUP
+1.1.2.7.6 Servicios Prepagados
+1.1.2.8 Provision para Cuentas Incobrables
+1.1.2.9 Inversiones en Instituciones Financieras (Corto Plazo)
+1.1.2.9.1 Banco Produbanco
+1.1.2.9.2 ANEFI
+1.1.3 Inventario
+1.1.3.1 Materia Prima
+1.1.3.1.1 Inv. Cárnicos y Embutidos MP
+1.1.3.1.1.1 Inv. Cárnicos Materia Prima MP
+1.1.3.1.1.2 Inv. Embutidos Procesados MP
+1.1.3.1.1.3 Inv. Embutidos MP
+1.1.3.1.2 Inv. Frutas y Verduras MP
+1.1.3.1.2.1 Inv. Verduras MP
+1.1.3.1.2.2 Inv. Frutas MP
+1.1.3.1.3 Inv. Salsas MP
+1.1.3.1.3.1 Inv. Salsas de Fábrica MP
+1.1.3.1.4 Inv. Condimentos MP
+1.1.3.1.4.2 Inv. Condimentos y Polvos MP
+1.1.3.1.5 Inv. Bebidas MP
+1.1.3.1.5.1 Inv. Bebidas No Alcohólicas MP
+1.1.3.1.5.2 Inv. Bebidas Alcohólicas
+1.1.3.1.5.3 Inv. Bebidas
+1.1.3.1.5.4 Inv. Bebidas Alcohólicas MP
+1.1.3.1.5.5 Inv. Bebidas No Alcohólicas
+1.1.3.1.6 Inv. Congelados MP
+1.1.3.1.6.1 Inv. Congelados Complementos MP
+1.1.3.1.6.2 Inv. Congelados de Fábrica MP
+1.1.3.1.7 Inv. Aceites y Mantecas MP
+1.1.3.1.7.1 Inv. Aceites y Mantecas MP
+1.1.3.1.8 Inv. Ovo-Lácteos MP
+1.1.3.1.8.1 Inv. Ovo-Lacteos MP
+1.1.3.1.9 Inv. Confitería - Dulces MP
+1.1.3.1.9.1 Inv Dulces MP
+1.1.3.1.10 Inv. Panadería y Snack MP
+1.1.3.1.10.1 Inv. Panadería MP
+1.1.3.1.10.2 Inv. Snack MP
+1.1.3.1.11 Inv. Quimicos de Alimentos MP
+1.1.3.1.12 Inv. Menú de Perro MP
+1.1.3.1.13 Inv. Granos y Cereales MP
+1.1.3.1.13.1 Inv. Granos MP
+1.1.3.1.13.2 Inv. Cereales MP
+1.1.3.1.14 Inv. Mariscos y Pescados MP
+1.1.3.1.14.1 Inv. Mariscos MP
+1.1.3.1.14.2 Inv. Pescados MP
+1.1.3.1.15 Inv. Producciones Santo Cachon
+1.1.3.2 Producto en Proceso PP
+1.1.3.2.1 Inv. Aliños PP
+1.1.3.2.2 Inv. Congelados en Proceso PP
+1.1.3.2.3 Inv. Dosificaciones Liquidas PP
+1.1.3.2.4 Inv. Dosificaciones Polvo PP
+1.1.3.2.5 Inv. Lacteos en Proceso PP
+1.1.3.2.6 Inv. Zumos en Proceso PP
+1.1.3.2.7 Inv. Verduras en Proceso PP
+1.1.3.2.8 Inv. Frutas en Proceso PP
+1.1.3.2.9 Inv. Salsas Procesadas en Bodega PP
+1.1.3.2.10 Aliños en Proceso Terceros
+1.1.3.3 Suministros o materiales a ser consumidos en el proceso de producción
+1.1.3.3.1 Inv. Empaques de Producción
+1.1.3.5 Producto Terminado PT
+1.1.3.5.1 Inv. Carnicos Procesados en Bodega PT
+1.1.3.5.2 Inv. Condimentos Procesados PT
+1.1.3.5.3 Inv. Congelados Procesados en Bodega PT
+1.1.3.5.4 Inv. Dosificaciones Polvo Terminados PT
+1.1.3.5.5 Inv. Lacteos Procesados PT
+1.1.3.5.6 Inv. Salsas Procesadas en Bodega PT
+1.1.3.5.7 Inv. Zumos Procesados PT
+1.1.3.5.8 Inv. Dulces PT
+1.1.3.5.9 Inv. Acompañantes Simon
+1.1.3.5.10 Inv. Salsas Procesadas en Locales PT
+1.1.3.6 Productos terminados y mercadería comprados a terceros
+1.1.3.6.1 Inv. PT Embutidos Materia Prima
+1.1.3.6.1.1 Inv. PT Cárnicos Procesados en Bodega.
+1.1.3.6.1.2 Inv. PT Embutidos Procesados en bodega
+1.1.3.6.2 Inv. PT Salsas Procesadas
+1.1.3.6.2.1 Inv. PT Salsas Procesadas
+1.1.3.6.3 Inv. PT Condimentos Procesados
+1.1.3.6.3.1 Inv. PT Condimentos Procesados.
+1.1.3.6.4 Inv. PT Congelados Procesados
+1.1.3.6.4.1 Inv. PT Congelados Procesados Complementos
+1.1.3.6.4.2 Inv. PT Congelados Procesados en Fábrica
+1.1.3.6.4.3 Inv. PT Congelados Lacteos Procesados
+1.1.3.6.4.4 Inv. PT Congelados Procesados Zumos
+1.1.3.6.5 Inv. PT Dosificaciones
+1.1.3.6.5.1 Inv. PT Dosificaciones Liquidas
+1.1.3.6.5.2 Inv. PT Dosificaciones Polvos
+1.1.3.6.6 Inv PT Panadería y Snack
+1.1.3.6.6.1 Inv PT Panadería
+1.1.3.6.6.2 Inv PT Snack
+1.1.3.6.7 Inv. PT Bebidas
+1.1.3.6.7.1 Inv. PT Bebidas
+1.1.3.6.7.2 Inv. PT Bebidas Alcohólicas
+1.1.3.6.8 Inv. PT Comida de perros
+1.1.3.6.8.1 Inv. PT Comida de perros
+1.1.3.6.9 Inv. PT Aceites y Mantecas
+1.1.3.6.9.1 Inv. PT Aceites y Mantecas
+1.1.3.6.10 Inv. Descartables PP
+1.1.3.7 Mercaderías en Transito
+1.1.3.8 Obras en Construcción
+1.1.3.8.4 Obras en Construcción
+1.1.3.9 Inventarios repuestos, herramientas y accesorios
+1.1.3.9.1 Utensilios
+1.1.3.10 Otros Inventarios
+1.1.3.10.1 Inv. Suministros de Limpieza
+1.1.3.10.1.1 Inv. Descartables de Limpieza
+1.1.3.10.1.2 Inv. Herramientas de Limpieza
+1.1.3.10.2 Inv. Químicos de Limpieza
+1.1.3.10.2.1 Inv. Químicos de Limpieza
+1.1.3.10.3 Inv. Suministros de Oficina - Papeleria
+1.1.3.10.4 Inv. Insumos Descartables
+1.1.3.10.4.1 Inv. Descartables de Alimentacion
+1.1.3.10.4.2 Inv. Empaques de Producción NO USAR ESTA CUENTA
+1.1.3.10.4.3 Descartables de Alimentación Procesados en planta
+1.1.3.10.5 Inv. Mano de obra (Prueba)
+1.1.4 Servicios y otros Pagos Anticipados
+1.1.4.1 Seguros
+1.1.4.2 Arriendos
+1.1.4.3 Anticipo a Proveedores
+1.1.4.4 Anticipo a Colaboradores
+1.1.5 Activos por Impuestos Corrientes
+1.1.5.1 IVA sobre Compras
+1.1.5.1.1 IVA sobre Compras
+1.1.5.1.2 IVA Crédito Tributario próximo mes
+1.1.5.2 Retenciones del IVA
+1.1.5.2.12 Retención IVA 0
+1.1.5.3 Retenciones en la Fuente del Impuesto a la Renta
+1.1.5.3.7 Otras Retenciones Aplicables al Cód. 343
+1.1.5.3.11 Otras autoretenciones
+1.1.5.3.12 Impuesto único a ingresos provenientes de actividades agropecuarias
+1.1.5.4 Anticipo de Impuesto a Renta
+1.1.6 Activos No Corrientes Mantenidos para la Venta y Op. desc.
+1.1.7 Otros Activos Corrientes
+1.1.7.1 Obras en construcción - Adecuaciones - Bienes de Terceros
+1.1.7.1.1 Adecuaciones en Planta
+1.1.7.1.2 Adecuaciones Locales
+1.1.7.2 Importaciones en Tránsito
+1.2 Activos No Corrientes
+1.2.1 Propiedad, Planta y Equipos
+1.2.1.1 Terrenos
+1.2.1.2 Edificios
+1.2.1.3 Construcciones en Curso
+1.2.1.4 Instalaciones
+1.2.1.4.1 Contenedor Bodega Secundaria
+1.2.1.5 Muebles y Enseres
+1.2.1.5.1 Muebles y Enseres Planta
+1.2.1.5.2 Muebles y Enseres Real
+1.2.1.5.3 Muebles y Enseres Portugal
+1.2.1.5.4 Muebles y Enseres Floreana
+1.2.1.5.5 Muebles y Enseres Simón
+1.2.1.5.6 Muebles y Enseres Simon Moro
+1.2.1.5.7 Muebles y Enseres Santo Cachon
+1.2.1.5.8 Muebles y Enseres Simon Bolon Floreana
+1.2.1.6 Maquinarias y Equipos
+1.2.1.6.1 Maquinarias y Equipos Planta
+1.2.1.6.2 Maquinarias y Equipos Real Audiencia
+1.2.1.6.3 Maquinarias y Equipos Floreana
+1.2.1.6.4 Maquinarias y Equipos Portugal
+1.2.1.6.5 Maquinarias y Equipos Simón
+1.2.1.6.6 Maquinarias y Equipos Asados
+1.2.1.6.7 Maquinarias y Equipos Santo Cachon Real
+1.2.1.6.8 Maquinarias y Equipos Santo Cachon Portugal
+1.2.1.6.9 Equipos de Computación Chios Real Audiencia
+1.2.1.6.10 Equipos de Computación Chios Floreana
+1.2.1.6.11 Equipos de Computación Chios Portugal
+1.2.1.6.12 Equipos de Computación Santo Cachon Real Audiencia
+1.2.1.6.13 Equipos de Computación Santo Cachon Portugal
+1.2.1.6.14 Equipos de Computación Simón Bolón Real Audiencia
+1.2.1.7 Equipos de Computación
+1.2.1.8 Vehículos, equipos de transporte y equipo caminero móvil
+1.2.1.9 Otras Propiedades, Planta y Equipo
+1.2.1.10 Repuestos y Herramientas
+1.2.1.13 Activos de Exploración y Explotación
+1.2.1.14 Naves, Aeronaves, Barcazas y Similares
+1.2.2 Propiedades de Inversion
+1.2.2.1 Terrenos
+1.2.2.2 Edificios
+1.2.3 Activos Biológicos
+1.2.3.1 Animales Vivos en Crecimiento
+1.2.3.2 Animales Vivos en Producción
+1.2.4 Intangibles
+1.2.4.1 Plusvalías
+1.2.4.2 Marcas, Patentes, Derechos de Llave, Cuotas Patrimoniales
+1.2.4.3 Activos de Exploración y Explotación
+1.2.4.6 Otros Activos Intangibles
+1.2.5 Activos por Impuestos Diferidos
+1.2.6 Activos Financieros No Corrientes
+1.2.6.1 Inversiones en Instituciones Financieras (Largo Plazo)
+1.2.6.1.1 Cooperativa Policía Nacional
+1.2.6.3 Documentos y Cuentas por Cobrar No Corrientes
+1.2.7 Otros Activos No Corrientes
+1.2.7.1 Garantía Locales
+1.2.7.2 Obras en construcción - Adecuaciones - Bienes de terceros
+1.2.7.2.1 Adecuaciones en Planta
+1.2.7.2.2 Adecuaciones Locales - Real
+1.2.7.2.4 Adecuaciones Locales - Simón
+1.2.7.2.6 Adecuaciónes Locales - Asados
+1.2.7.2.8 Adecuaciones Locales - Santo Cachon Real
+1.2.7.2.10 Adecuaciones Locales - Santo Cachon Portugal
+1.2.7.2.12 Adecuaciones Locales - Simon Bolon Floreana
+2.1 Pasivo Corriente
+2.1.1 Movimientos no identificados
+2.1.2 Pasivos por Contratos de Arrendamientos Financieros
+2.1.3 Cuentas y Documentos por Pagar
+2.1.3.1 Cuentas por Pagar
+2.1.3.1.1 Proveedores
+2.1.3.1.2 Proveedores Exterior
+2.1.3.1.3 Propinas
+2.1.3.2 Documentos por Pagar
+2.1.3.2.1 Documentos por Pagar Proveedores
+2.1.3.2.2 Documentos por Pagar Proveedores Exterior
+2.1.3.3 Prestamos con Terceros
+2.1.3.3.1 Prestamo Johanna Narvaez
+2.1.4 Obligaciones Con Instituciones Financieras
+2.1.4.1 Obligaciones con Instituciones Financieras Locales
+2.1.4.1.1 Préstamo Produbanco C/P
+2.1.4.1.2 Préstamo Pedidos Ya C/P
+2.1.4.1.3 Préstamo Bolivariano C/P
+2.1.4.2 Obligaciones con Instituciones Financieras del Exterior
+2.1.4.3 Tarjeta de crédito (Consumos diferidos)
+2.1.4.4 Tarjeta de Crédito Titanium 7506
+2.1.4.5 Tarjeta de Crédito 4020
+2.1.4.6 Tarjeta de Credito Diners 5720
+2.1.4.7 Tarjeta de Crédito Produbanco 0693
+2.1.4.8 Tarjeta de Crédito Produbanco 0835
+2.1.5 Provisiones
+2.1.5.1 Anticipo Proveedores Locales
+2.1.5.2 Provisiones del Exterior
+2.1.5.3 Provisión Obras en Construcción
+2.1.5.4 Provisiones Arrendamiento Equipos
+2.1.6 Porcion Corriente de Obligaciones Emitidas
+2.1.7 Otras Obligaciones Corrientes
+2.1.7.1 Retenciones del I.E.S.S.
+2.1.7.1.1 Aporte I ESS 9.45% Individual por Pagar
+2.1.7.1.2 Prestamos Quirografarios por Pagar
+2.1.7.1.3 Prestamos Hipotecarios por Pagar
+2.1.7.1.4 Aporte Patronal 11,15% IESS por pagar
+2.1.7.1.5 Fondos de Reserva por Pagar
+2.1.7.1.6 IESS por pagar
+2.1.7.2 Retenciones en la Fuente de Impuestos a la Renta
+2.1.7.2.13 Impuesto único a ingresos provenientes de actividades agropecuarias
+2.1.7.3 Retenciones del Impuesto al Valor Agregado
+2.1.7.4 IVA Sobre Ventas
+2.1.7.4.1 IVA sobre Ventas
+2.1.7.5 Impuestos por Pagar
+2.1.7.5.1 Impuesto a la Renta Cía.
+2.1.7.5.2 Impuesto a la Junta de Beneficiencia
+2.1.7.5.3 Impuesto a los Activos Totales
+2.1.7.5.4 Impuestos a la Universidad de Guayaquil
+2.1.7.5.5 Impuestos Prediales
+2.1.7.5.6 Impuesto a los Consumos Especiales
+2.1.7.5.7 Impuestos por Pagar
+2.1.7.6 Beneficios Sociales por Pagar
+2.1.7.6.1 Décimo Tercer Sueldo Por Pgar
+2.1.7.6.2 Décimo Cuarto Sueldo por Pagar
+2.1.7.6.3 Vacaciones por pagar por Pagar
+2.1.7.6.6 Fondos de Reservas Por Pagar
+2.1.7.6.7 Provisión de Jubilación Patronal por Pagar
+2.1.7.6.8 Provisión por Desahucio
+2.1.7.6.9 Liquidaciones Empleados por Pagar
+2.1.7.7 Nominas
+2.1.7.7.1 Sueldos por Pagar
+2.1.7.7.2 Retención Judicial Empleado por Pensión alimenticia por Pagar
+2.1.7.8 Participación de Trabajadores
+2.1.7.9 Dividendos por Pagar a Socios
+2.1.8 Cuentas por Pagar Diversas/Relacionadas
+2.1.8.1 Cuenta por Pagar Socios o Accionistas
+2.1.8.2 Cuenta por Pagar Funcionarios y/o Empleados
+2.1.8.3 Cuenta por Pagar Compañías Relacionadas
+2.1.8.4 Cuenta por Pagar Compañías Relacionadas del Exterior
+2.1.8.5 Documentos por Pagar Funcionarios y/o Empleados
+2.1.8.6 Documentos por Pagar Compañías Relacionadas
+2.1.8.7 Cuenta por Pagar Funcionarios y/o Empleados (10% Servicio)
+2.1.9 Otros Pasivos Financieros
+2.1.10 Anticipos de Clientes
+2.1.11 Pasivos directamente relacionados con los Activos No Corrientes
+2.1.12 Porción Corriente de Provisiones por Beneficios a Empleados
+2.1.12.1 Jubilación Patronal
+2.1.12.2 Otros Beneficios a largo Plazo para los Empleados
+2.1.13 Otros Pasivos Corrientes
+2.1.13.1 Cuentas por Pagar - Chios / Daniel Chamorro
+2.1.13.2 Cuentas por Pagar - Rocio Gonzalez
+2.1.13.3 Depósitos /Transferencias por verificar
+2.1.13.4 Cuentas por Pagar - FOODZAGROUP
+2.1.13.5 Otras Cuentas por Pagar
+2.1.14 Anticipo Gastos Administrativos
+2.2 Pasivo No Corriente
+2.2.1 Pasivos por Contratos de Arrendamiento Financiero
+2.2.2 Cuentas y Documentos por Pagar
+2.2.2.1 Cuentas por Pagar
+2.2.2.1.1 Proveedores No Corriente
+2.2.2.1.2 Proveedores Exterior No Corriente
+2.2.2.2 Documentos por Pagar
+2.2.2.2.1 Documento por Pagar Proveedores No Corriente
+2.2.2.2.2 Documentos por Pagar Proveedores Exterior No Corriente
+2.2.2.3 Prestamos con Terceros
+2.2.2.3.1 Prestamo Johanna Narvaez L/P
+2.2.3 Obligaciones con Instituciones Financieras
+2.2.3.1 Obligaciones con Instituciones Financieras Locales No Corrientes
+2.2.3.1.1 Prestamos Produbanco
+2.2.3.1.2 Préstamo Bolivariano
+2.2.3.2 Obligaciones con Instituciones Financieras del Exterior No Corriente
+2.2.4 Cuenta por Pagar Diversas/Relacionadas
+2.2.4.1 Cuenta por Pagar Socios o Accionistas No Corrientes
+2.2.4.2 Cuenta por Pagar Funcionarios y/o Empleados No Corriente
+2.2.4.3 Cuenta por Pagar Compañias Relacionadas No Corriente
+2.2.4.4 Cuenta por Pagar Compañías Relacionadas del Exterior No Corriente
+2.2.5 Préstamo Socio DCH
+2.2.6 Préstamo Socio RG
+2.2.7 Provisiones por Beneficios a Empleados
+2.2.7.1 Jubilación Patronal
+2.2.7.2 Otros Beneficios No Corrientes Para los Empleados
+2.2.8 Pasivo Diferido
+2.2.8.1 Ingresos Diferidos
+2.2.8.2 Pasivos por Impuestos Diferidos
+2.2.9 Otros Pasivos No Corrientes
+3.1 Patrimonio Atribuible a Propietarios
+3.1.1 Capital Social
+3.1.1.1 Capital Social suscrito o pagado
+3.1.1.1.1 Capital Social Chamorro Gonzalez Daniel Alberto
+3.1.1.1.2 Capital Social Gonzalez Velasquez Yehejia del Rocio
+3.1.2 Aportes de Socios o Accionistas para Futura Capitalización
+3.1.3 Prima por Emisión Primaria de Acciones
+3.1.4 Reservas
+3.1.4.1 Legal
+3.1.4.2 Facultativa y Estatutaria
+3.1.4.3 Reserva de Capital
+3.1.5 Otros Resultados Integrales
+3.1.5.1 Superávit por Valuación de Activos Financieros
+3.1.5.2 Superávit por Revaluación de Propiedad, Plantas y Equipos
+3.1.5.3 Superávit por Valuación de Activos Intagibles
+3.1.5.4 Otros Superávit por Revaluación
+3.1.6 Resultados Acumulados
+3.1.6.1 Resultados Acumulados
+3.1.6.2 Resultados provenientes de la adopción por 1era vez del las NIIF
+3.1.7 Resultado del Ejercicio
+3.1.7.1 Resultado del Ejercicio
+3.2 Participación No Controladas
+3.2.1 Participación No Controladas
+4.1 Ingresos de Actividades Ordinarias
+4.1.1 Venta de Bienes
+4.1.1.1 Venta de Hamburguesas
+4.1.1.1.1 Venta de Hamburguesas
+4.1.1.2 Venta de Alitas
+4.1.1.2.1 Venta de Alitas
+4.1.1.3 Venta de Bebidas
+4.1.1.3.1 Venta de Bebidas
+4.1.1.3.2 Venta de Bebidas Alcohólicas
+4.1.1.3.3 Venta de Cocteles
+4.1.1.3.4 Venta de Bebidas Alcohólicas MP
+4.1.1.3.5 Venta de Bebidas No Alcohólicas
+4.1.1.3.6 Venta Bebidas Calientes
+4.1.1.4 Venta de Ensaladas
+4.1.1.4.1 Venta de Ensaladas
+4.1.1.5 Venta de Combos
+4.1.1.5.1 Venta de Combos CHIOS
+4.1.1.5.2 Venta Combos Simón
+4.1.1.6 Venta de Postres
+4.1.1.6.1 Venta de Postres
+4.1.1.7 Venta de Promociones
+4.1.1.7.1 Venta de Promociones
+4.1.1.8 Venta de Extras y Side
+4.1.1.8.1 Venta de Extras
+4.1.1.8.2 Venta de Salsas Extras
+4.1.1.8.3 Venta de Sides
+4.1.1.8.4 Venta de Extras Simón
+4.1.1.9 Ventas de Otros
+4.1.1.9.1 Venta Domicilios
+4.1.1.9.2 Venta Varios a Terceros
+4.1.1.9.3 Venta de Materia Prima
+4.1.1.10 Venta Menú de Perro
+4.1.1.10.1 Venta Menú de Perro
+4.1.1.11 Venta de Salsas
+4.1.1.12 Venta de Ceviches y Encebollados
+4.1.1.12.1 Venta Ceviches
+4.1.1.12.2 Venta Encebollados
+4.1.1.12.3 Venta Ceviche (No usar)
+4.1.1.13 Venta Complemento
+4.1.1.13.1 Venta Empanadas
+4.1.1.13.2 Venta Corviches
+4.1.1.13.4 Venta Patacones y Maduros
+4.1.1.13.5 Venta Muchines
+4.1.1.13.6 Inactiva
+4.1.1.14 Venta de Platos con Arroz
+4.1.1.15 Venta de Bolones
+4.1.1.16 Venta de Combos Simón
+4.1.1.17 Venta de Tigrillos
+4.1.1.18 Venta de Congelados procesados en Bodega
+4.1.1.18.1 Venta de Congelados procesados en Bodega
+4.1.1.19 Venta de Entradas
+4.1.1.19.1 Venta de Entradas
+4.1.1.20 Venta de Menestras
+4.1.1.20.1 Venta de Menestras
+4.1.1.21 Venta de Cortes y Cerdo
+4.1.1.21.1 Venta de Cortes
+4.1.1.21.2 Venta de Parrilladas
+4.1.1.22 Venta de Porciones Santo
+4.1.1.22.1 Venta de Porciones Santo
+4.1.1.23 Venta de Moros y Arroces
+4.1.1.23.1 Venta de Moros y Arroces
+4.1.1.24 Venta de Colonches
+4.1.1.24.1 Venta Colonches
+4.1.1.25 Venta de Platos Criollos
+4.1.2 Prestación de Servicios
+4.1.3 Devoluciones sobre Ventas
+4.1.4 Rebaja y/o Descuentos sobre Ventas
+4.1.5 Ingresos por Regalías Cuotas y Comisiones
+4.1.7 Ingresos por Primas y Prestaciones
+4.1.9 Ingreso por Arriendo de Planta
+4.1.10 Ingresos por Dividendos
+4.1.11 Otros Ingresos de Actividades Ordinarias
+4.2 Otros Ingresos de Actividades Ordinarias
+4.2.1 Fletes
+4.2.2 Multas
+4.2.3 Intereses
+4.2.4 Propinas
+4.2.5 Otros ingresos (Sobrantes caja)
+4.2.6 Otros Ingresos (Dsct en nónima)
+4.2.7 Otros Ingresos (Plataformas)
+4.2.8 Otros ingreso Aceite Quemado
+4.2.9 Otros Ingresos Subvenciones
+4.2.10 Otros ingresos en cobros Plataformas
+4.2.11 Otros Ingresos Donaciòn OIM
+4.2.12 Otros Ingresos a favor liquidaciones (exemp)
+4.2.13 Venta de Comidas en Restaurante (Uber Eat)
+4.3 Otros Ingresos Financieros
+4.3.1 Dividendos Financieros
+4.3.2 Intereses Financieros
+4.3.3 Ganancia de Asociadas y Negocios Conjuntos
+4.3.4 Valuación de Instrumentos Financieros
+4.3.5 Otras Rentas
+4.4 Otros Ingresos no Operacionales
+4.4.1 Otros Ingresos ajustes Porveedores años anteriores
+4.4.2 Ingreso por Subarriendo local FLoreana
+4.4.3 Otros Ingresos ajustes Porveedores
+4.5 Descuento Por Plataformas (Extracontable)
+5.1 Costos de Venta y Producción
+5.1.1 Materiales Utilizados o Productos Vendidos
+5.1.1.1 Bienes No Producidos
+5.1.1.1.1 Costo Carnicos
+5.1.1.1.1.1 Costo Carnicos
+5.1.1.1.1.2 Costo Embutidos
+5.1.1.1.2 Nombre pendiente
+5.1.1.1.2.1 No usar
+5.1.1.1.3 Costo Condimentos y polvos
+5.1.1.1.3.2 Costo Condimentos y Polvos
+5.1.1.1.4 Costo Congelados
+5.1.1.1.4.1 Costo Congelados Procesados Complementos
+5.1.1.1.4.2 Costo Congelados Procesados en Fábrica
+5.1.1.1.4.3 Costo Congelados Lacteos Procesados
+5.1.1.1.4.4 Costo Congelados Procesados Zumos
+5.1.1.1.4.5 Costo Congelados de Fabrica
+5.1.1.1.5 Costo Frutas y Verduras
+5.1.1.1.5.1 Costo Frutas
+5.1.1.1.5.2 Costo Verduras
+5.1.1.1.6 Costo Panaderia y Snacks
+5.1.1.1.6.1 Costo Panaderia
+5.1.1.1.6.2 Costo Snacks
+5.1.1.1.7 Costo Bebidas
+5.1.1.1.7.1 Costo Bebidas PT
+5.1.1.1.7.2 Costo Bebidas Alcohólicas PT
+5.1.1.1.7.3 Costo Bebidas No Alcohólicas
+5.1.1.1.8 Costo Comida de perros
+5.1.1.1.8.1 Costo Comida de perros
+5.1.1.1.9 Costo Aceites y Mantecas
+5.1.1.1.9.1 Costo Aceites y Mantecas
+5.1.1.1.10 Costo Dulces
+5.1.1.1.10.1 Costo Dulces
+5.1.1.1.11 Costo Ovo-Lacteos
+5.1.1.1.11.1 Costo Ovo-Lacteos
+5.1.1.2 Bienes No Producidos Importados
+5.1.1.3 Materia Prima
+5.1.1.3.1 Costo MP Bebidas
+5.1.1.3.1.1 Costo Bebidas Alcohólicas MP
+5.1.1.3.1.2 Costo Bebidas No Alcohólicas MP
+5.1.1.3.1.3 Costo Bebidas MP
+5.1.1.3.2 Costo Aceites y Mantecas MP
+5.1.1.3.3 Costo Condimentos y Polvos MP
+5.1.1.3.4 Costo Congelados de Fabrica MP
+5.1.1.3.5 Costo Dulces MP
+5.1.1.3.6 Costo Cárnicos - Embutidos MP
+5.1.1.3.6.1 Costo Cárnicos MP
+5.1.1.3.6.2 Costo Embutidos MP
+5.1.1.3.7 Costo Ovo-Lacteos MP
+5.1.1.3.8 Costo Panadería Y Snack MP
+5.1.1.3.8.1 Costo Panadería MP
+5.1.1.3.8.2 Costo Snack MP
+5.1.1.3.9 Costos Salsas de Fabrica MP
+5.1.1.3.9.1 Costo Salsas de Fábrica MP
+5.1.1.3.10 Costo Frutas y Verduras MP
+5.1.1.3.10.1 Costo Verduras MP
+5.1.1.3.10.2 Costo Frutas MP
+5.1.1.3.12 Costo Quimicos de Alimentos MP
+5.1.1.3.13 Costo Menú de Perro MP
+5.1.1.3.14 Costo Granos y Cereales MP
+5.1.1.3.14.1 Costo Granos MP
+5.1.1.3.14.2 Costo Cereales MP
+5.1.1.3.15 Costo Mariscos y Pescados MP
+5.1.1.3.15.1 Costo Mariscos MP
+5.1.1.3.15.2 Costo Pescados MP
+5.1.1.5 Productos en Proceso
+5.1.1.5.1 Costo Aliños en proceso PP
+5.1.1.5.2 Costo Congelados en proceso PP
+5.1.1.5.3 Costo Dosificaciones Liquidas en proceso PP
+5.1.1.5.4 Costo Dosificaciones Polvo en proceso PP
+5.1.1.5.5 Costo Lacteos en proceso PP
+5.1.1.5.6 Costo Zumos en proceso PP
+5.1.1.5.7 Costo Verduras en proceso PP
+5.1.1.5.8 Costo Frutas en proceso PP
+5.1.1.6 Productos Terminados
+5.1.1.6.1 Costo Carnicos Procesados en Bodega PT
+5.1.1.6.2 Costo Condimentos Procesados en Bodega PT
+5.1.1.6.3 Costo Congelados Procesados en Bodega PT
+5.1.1.6.4 Costo Dosificaciones PT
+5.1.1.6.5 Costo Lacteos Procesados PT
+5.1.1.6.6 Costo Salsas Procesadas PT
+5.1.1.6.7 Costo Zumos Procesados PT
+5.1.1.6.8 Costos Dulces PT
+5.1.1.6.9 Costo Acompañantes Simón PT
+5.1.1.6.10 Costo Salsas Procesadas_PT
+5.1.1.6.11 Costo Producciones Santo Cachon PT
+5.1.1.6.12 Costo Menu de Perro PT
+5.1.1.7 Costo Empaques de Produccion
+5.1.1.8 Descuento en Compras MP
+5.1.2 Mano de Obra Directa
+5.1.2.1 Sueldos Mano de Obra Directa
+5.1.2.2 Horas Extras Mano de Obra Directa
+5.1.2.3 Décimo Tercer Sueldo Mano de Obra Directa
+5.1.2.4 Decimo Cuarto Sueldo Mano de Obra Directa
+5.1.2.5 Vacaciones Mano de Obra Directa
+5.1.2.6 Aportes Patronales al I.E.S.S. Mano de Obra Directa
+5.1.2.7 Secap - Iece Mano de Obra Directa
+5.1.2.8 Fondos de Reserva Mano de Obra Directa
+5.1.2.9 Gastos Planes de Beneficios a Empleados Mano de Obra Directa
+5.1.2.10 Servicios de Maquila de Productos
+5.1.2.11 Desahucio MOD
+5.1.3 Mano de Obra Indirecta
+5.1.3.1 Sueldos Mano de Obra Indirecta
+5.1.3.2 Sobretiempos Mano de Obra Indirecta
+5.1.3.3 Décimo Tercer Sueldo Mano de Obra Indirecta
+5.1.3.4 Décimo Cuarto Sueldo Mano de Obra Indirecta
+5.1.3.5 Vacaciones Mano de Obra Indirecta
+5.1.3.6 Aportes Patronales al I.E.S.S. Mano de Obra Indirecta
+5.1.3.7 Secap - Iece Mano de Obra Indirecta
+5.1.3.8 Fondos de Reserva Mano de Obra Indirecta
+5.1.3.9 Gastos Planes de Beneficios a Empleados - Indirecta
+5.1.4 Costos Indirectos de Fabricación
+5.1.4.1 Depreciación Propiedades, Plantas y Equipos
+5.1.4.2 Depreciación de Activos Biológicos
+5.1.4.3 Deterioro de Propiedad, Planta y Equipo
+5.1.4.4 Efecto valor neto de realización de Inventarios
+5.1.4.5 Gasto por Garantías en Venta de Productos o Servicios
+5.1.4.6 Mantenimiento y Reparaciones Costos
+5.1.4.7 Suministros, Materiales y Repuestos Costos
+5.1.4.8 Otros Costos de Producción
+5.1.4.8.1 Costo Suministros de Limpieza
+5.1.4.8.1.1 Costo Descartables de Limpieza
+5.1.4.8.1.2 Costo Herramientas de Limpieza
+5.1.4.8.2 Costo Químicos de Limpieza
+5.1.4.8.2.1 Costo Químicos de Limpieza
+5.1.4.8.4 Otros Costos de Producción
+5.1.4.8.4.1 Costo de Gas (GLP)
+5.1.4.8.4.2 Control de Plagas - Fumigación
+5.1.4.8.4.3 Otros Costos Indirectos (AE)
+5.1.4.8.4.4 Gasto Gestión de Residuos
+5.1.4.8.5 Uniformes de Producción
+5.1.4.8.6 Costos Por Bajas de Productos
+5.1.4.8.7 Costos por contramuestras
+5.1.4.9 Arrendamiento de Equipos - Muebles
+5.1.4.10 Costos por Notas de crédito
+5.1.4.11 Absorción de Mano de Obra
+5.1.4.12 Costos por Ajuste de Inventarios
+5.1.4.13 Transporte por Traslado de Productos
+5.1.5 Costo Insumos Descartables Consumidos en Locales
+5.1.5.1 Costo Insumos Descartables MP
+5.1.5.2 Costo Insumos Descartables
+5.2 Otros Costos y Gastos
+5.2.1 Costos de Ventas y Publicidad
+5.2.1.1 Costo de Ventas Personal
+5.2.1.1.1 Sueldos Unificados Vtas.
+5.2.1.1.2 Horas Extras Vtas.
+5.2.1.1.3 Gratificaciones / Bonificaciones Vtas.
+5.2.1.1.3.1 Bonificación por Cargo 2021
+5.2.1.1.3.2 Bonificación por Resultados 2022
+5.2.1.1.3.4 Compensación Alimentación Rol
+5.2.1.1.3.5 Otros Ingresos
+5.2.1.1.4 Refrigerios, alimentación, agasajos Vtas.
+5.2.1.1.5 Aportes Patronales al IESS Vtas.
+5.2.1.1.6 Participación Trabajadores Vtas.
+5.2.1.1.7 Fondos de Reserva Vtas.
+5.2.1.1.8 Décimo Tercer Sueldo Vtas.
+5.2.1.1.9 Décimo Cuarto Sueldo Vtas.
+5.2.1.1.10 Vacaciones Vtas.
+5.2.1.1.11 Desahucio Vtas.
+5.2.1.1.12 Bonificación por Desempeño Ventas
+5.2.1.1.13 Bonificación por Transporte Ventas
+5.2.1.1.14 Servicios Contratados Vtas.
+5.2.1.1.14.1 Firma Electrónica
+5.2.1.1.14.2 Dominio
+5.2.1.1.14.3 Servicios de Seguridad Locales Vtas.
+5.2.1.1.14.4 Servicios Contratados Entrenamiento Vtas.
+5.2.1.1.14.5 Servicios Asesoría
+5.2.1.1.14.6 Servicios Catering para Eventos
+5.2.1.1.14.7 Servicios Contratados Ventas (AE)
+5.2.1.1.14.8 Servicios Contratado Ventas (AL)
+5.2.1.1.14.9 Servicio de Transporte Personal Ventas
+5.2.1.1.15 Costos Alquiler Equipos de Terceros
+5.2.1.1.16 Otros Costo de Ventas
+5.2.1.1.16.1 Costo de Adecuaciones Locales Vtas.
+5.2.1.1.16.2 Costo de Limpieza Locales
+5.2.1.1.17 Mantenimiento de Equipos Vtas.
+5.2.1.1.18 Reparaciones de Equipos Vtas.
+5.2.1.1.19 Arriendos Locales Vtas.
+5.2.1.1.20 Equipos y Maquinarias Menores Vtas.
+5.2.1.1.21 Publicidad y Marketing
+5.2.1.1.21.1 Publicidad de Agencias, Influencers / terceros
+5.2.1.1.21.2 Publicidad impresa
+5.2.1.1.21.3 Aplicaciones de Delivery
+5.2.1.1.21.4 Utileria y Materiales Marketing
+5.2.1.1.21.5 Eventos Vtas.
+5.2.1.1.21.6 Servicios de Marketing
+5.2.1.1.21.7 Pautaje en redes sociales
+5.2.1.1.22 Publicaciones impresa y Redes Sociales Vtas.
+5.2.1.1.23 Combustible Vtas.
+5.2.1.1.24 Utileria y Materiales Marketing
+5.2.1.1.25 Seguros Locales Ventas
+5.2.1.1.26 Movilización y Transporte Vtas.
+5.2.1.1.27 Honorarios de Marketing
+5.2.1.1.28 Delivery Vtas.
+5.2.1.1.29 Costo de Atención Empleados Vtas.
+5.2.1.1.30 Viajes Vtas.
+5.2.1.1.31 Reembolsos del Exterior Ventas
+5.2.1.1.32 Pasajes Aereos Vtas.
+5.2.1.1.33 Energía Eléctrica Vtas.
+5.2.1.1.34 Teléfonos Convencionales Vtas.
+5.2.1.1.35 Celulares Vtas.
+5.2.1.1.36 Internet Vtas.
+5.2.1.1.37 Agua Vtas.
+5.2.1.1.38 Televisión Pagada Vtas.
+5.2.1.1.39 Costo Notariales Vtas.
+5.2.1.1.40 Costo de Registro Mercantil Vtas.
+5.2.1.1.41 Impuesto a los Consumos Especiales Vtas.
+5.2.1.1.42 Impuesto a la Renta
+5.2.1.1.43 Impuestos Municipales Vtas.
+5.2.1.1.44 Contribuciones a Superintendencia de Compañías Vtas.
+5.2.1.1.45 IVA Costo Vtas.
+5.2.1.1.46 Depreciaciones Propiedades Planta y Equipos Ventas
+5.2.1.1.47 Depreciaciones de Maquinarias y Equipos Ventas
+5.2.1.1.48 Depreciaciones de Eq de Computación Ventas
+5.2.1.1.49 Amortizaciones Otros Activos Vtas.
+5.2.1.1.50 Gastos por Deterioro Propiedades Planta y Equipos Vtas
+5.2.1.1.51 Gastos de Deterioro Inventario Vtas.
+5.2.1.1.52 Impuestos Aduaneros Vtas.
+5.2.1.1.53 Gastos por Deterioro Intangibles Vtas.
+5.2.1.1.54 Gastos por Deterioro Cuentas por Cobrar Vtas
+5.2.1.1.55 Gastos por Deterioro Otros Activos Vtas.
+5.2.1.1.56 Gastos Anormales Mano de Obra Vtas.
+5.2.1.1.57 Otros Costos de Materiales Vtas.
+5.2.1.1.58 Costos Anormales Costos de Produccion Vtas
+5.2.1.1.59 Costos por Restructuracion Vtas
+5.2.1.1.60 Costos por Valor Neto de realizacion de Inventarios Vtas
+5.2.1.1.61 Asociaciones y Suscripciones Vtas.
+5.2.1.1.62 Cuotas y Afiliaciones Vtas.
+5.2.1.1.63 Costo de Oficina Vtas
+5.2.1.1.64 Capacitación y Entrenamiento Vtas.
+5.2.1.1.65 Uniformes Vtas.
+5.2.1.1.66 Miscelaneos Vtas. (Diferencia cajas)
+5.2.1.1.67 Costo Medico Ventas
+5.2.1.1.68 Servicios Digitales Ventas
+5.2.1.1.69 COSTO COMISIONES APLICATIVOS
+5.2.1.1.69.1 Costo de comisiones Aplicativos Rappi
+5.2.1.1.69.2 Costo de comisiones Aplicativos Pedidos Ya
+5.2.1.1.69.3 Costo de comisiones Aplicativos Uber
+5.2.1.1.69.4 Provisión costos de comisiones Aplicativos Uber
+5.2.1.1.69.5 Provisión costos de comisiones Aplicativos Rappi
+5.2.1.1.69.6 Provisión costos de comisiones Aplicativos Pedidos YA
+5.2.1.1.69.7 Costos de comisiones Aplicativos NUVEI
+5.2.1.1.69.8 Costo de comisiones Courier Pedidos Ya
+5.2.1.1.69.9 Provisión costos de comisiones Courier Pedidos Ya
+5.2.1.1.69.10 Costos de comisiones Aplicativos Chios Justo
+5.2.1.1.69.11 Provisión costos de comisiones Aplicativos Chios Justo
+5.2.1.1.70 Botellones de agua
+5.2.1.1.71 Costos Permiso de Funcionamiento
+5.2.1.1.72 Muebles y Enseres Menores Vtas.
+5.2.1.1.73 Otros Costos de Operación
+5.2.1.1.73.1 Remodelación de Insfraestructura de Locales
+5.2.1.1.73.2 Costo de Desarrollo de Productos
+5.2.1.1.73.3 Suministros, Materiales y Repuestos Vtas
+5.2.1.1.73.4 Costo de Innovación de Productos
+5.2.1.1.73.5 Tasas y Contribuciones Ventas
+5.2.1.1.73.6 Movilización por trámite ventas
+5.2.1.1.74 Mantenimientos
+5.2.1.1.74.1 Mantenimiento Preventivo
+5.2.1.1.74.1.1 Mantenimiento Equipos Calientes
+5.2.1.1.74.1.1.1 Mano de Obra Equipos Calientes
+5.2.1.1.74.1.1.2 Materiales Equipos Calientes
+5.2.1.1.74.1.2 Mantenimientos Equipos frios
+5.2.1.1.74.1.2.1 Mano de Obra Equipos Frios
+5.2.1.1.74.1.2.2 Materiales Equipos Frios
+5.2.1.1.74.1.3 Mantenimientos Ductos y Extractor
+5.2.1.1.74.1.3.1 Mano de Obra Ductos y Estractores
+5.2.1.1.74.1.3.2 Materiales Ductos y Extractores
+5.2.1.1.74.1.4 Mantenimiento Albañileria y Plomeria
+5.2.1.1.74.1.4.1 Mano de Obra Albañileria y Papeleria
+5.2.1.1.74.1.4.2 Materiales Albañileria y Plomeria
+5.2.1.1.74.1.4.3 Estructura Centralita
+5.2.1.1.74.1.5 Mantenimiento Eléctrico
+5.2.1.1.74.1.5.1 Mano de Obra Eléctrico
+5.2.1.1.74.1.5.2 Materiales Eléctrico
+5.2.1.1.74.1.6 Mantenimiento Electrónico
+5.2.1.1.74.1.6.1 Mano de Obra Electrónico
+5.2.1.1.74.1.6.2 Materiales Electrónico
+5.2.1.1.74.1.7 Mantenimiento Equipos de Producción
+5.2.1.1.74.1.7.1 Mano de Obra Equipos de Producción
+5.2.1.1.74.1.7.2 Materiales Equipo de Producción
+5.2.1.1.74.1.8 Mantenimiento y Recarga de Extintores
+5.2.1.1.74.1.9 Mantenimiento Generadores y Motores
+5.2.1.1.74.1.9.1 Preventivo Mano de Obra Generadores y Motores
+5.2.1.1.74.1.9.2 Preventivo Materiales Generadores y Motores
+5.2.1.1.74.2 Mantenimiento Correctivo
+5.2.1.1.74.2.1 Corredtivos Equipos Calientes
+5.2.1.1.74.2.1.1 Correctivo Mano de Obra Equipos Calientes
+5.2.1.1.74.2.1.2 Correctivo Materiales Equipos Calientes
+5.2.1.1.74.2.2 Correctivos Equipos Frios
+5.2.1.1.74.2.2.1 Correctivo Mano de Obra Equipos Frios
+5.2.1.1.74.2.2.2 Correctivos Materiales Equipos Frios
+5.2.1.1.74.2.3 Correctivos Ductos y Extractor
+5.2.1.1.74.2.4 Correctivos Albañileria y Plomeria
+5.2.1.1.74.2.5 Correctivo Eléctrico
+5.2.1.1.74.2.6 Correctivo Electrónico
+5.2.1.1.74.2.7 Correctivo Equipos de Producción
+5.2.1.1.74.2.8 Correctivo Mantenimiento Generadores y Motores
+5.2.1.1.74.2.8.1 Correctivo Mano de obra Generadores y Motores
+5.2.1.1.74.2.8.2 Correctivo Materiales Generadores y Motores
+5.2.1.2 Gastos Administrativos
+5.2.1.2.1 Sueldos Unificados Adm.
+5.2.1.2.2 Horas Extras Adm.
+5.2.1.2.3 Gratificaciones Adm.
+5.2.1.2.3.1 Bonificaciones por Cargo
+5.2.1.2.3.2 Bonificaciones por Resultados
+5.2.1.2.3.3 Refrigeriso , agasajos , alimentacion empleados Adm.
+5.2.1.2.4 Agasajos Adm.
+5.2.1.2.5 Aportes Patronales al IESS Adm.
+5.2.1.2.6 Utilidades trabajadores
+5.2.1.2.7 Fondos de Reserva Adm.
+5.2.1.2.8 Décimo Tercer Sueldo Adm.
+5.2.1.2.9 Décimo Cuarto Sueldo Adm.
+5.2.1.2.10 Vacaciones Adm.
+5.2.1.2.11 Desahucio Adm.
+5.2.1.2.12 Bonificación por Desempeño Adm.
+5.2.1.2.13 Honorarios Profesionales Adm.
+5.2.1.2.14 Servicios Contratados Adm.
+5.2.1.2.14.1 Servicios de Asesoria Contable Financiera
+5.2.1.2.14.2 Servicios Legales y Notariales
+5.2.1.2.14.3 Servicios de Seguridad y Salud Ocupacional
+5.2.1.2.14.4 Servicios Administrativos Gestiòn Plataforma
+5.2.1.2.14.5 Servicio de Auditoria Externa
+5.2.1.2.15 Gastos Remuneraciones a otros trabajadores autónomos Adm.
+5.2.1.2.16 Gastos de Mantenimiento Infraestructura Adm.
+5.2.1.2.16.1 Gastos de Adecuaciones y Mantenimiento Planta Oficina ADM
+5.2.1.2.16.2 Gastos de Limpieza Planta Oficinas ADM
+5.2.1.2.17 Mantenimiento de Equipos Adm.
+5.2.1.2.18 Reparaciones de Equipos Adm.
+5.2.1.2.19 Arriendos Oficina y Planta producciòn Administraciòn
+5.2.1.2.20 Arriendo bodega Adminsitraciòn
+5.2.1.2.21 Equipos y Maquinarias Menores Adm.
+5.2.1.2.22 Utilería y vestuario Marketing no utlitizar
+5.2.1.2.23 Combustible Adm.
+5.2.1.2.24 Lubricantes Adm.
+5.2.1.2.25 Seguros Oficina Administrativa
+5.2.1.2.26 Movilización y Transporte personal Adm.
+5.2.1.2.27 Guías de Transportes Adm.
+5.2.1.2.28 Transporte trámites Adm.
+5.2.1.2.29 Gastos de Gestión Adm. (Gerencia)
+5.2.1.2.30 Gastos de Viajes Adm.
+5.2.1.2.31 Viajes al Exterior Adm.
+5.2.1.2.32 Pasajes Aereos Adm.
+5.2.1.2.33 Energía Eléctrica Adm.
+5.2.1.2.34 Teléfonos Administración
+5.2.1.2.35 Celulares Adm.
+5.2.1.2.36 Internet Adm.
+5.2.1.2.37 Agua Adm.
+5.2.1.2.38 Televisión Pagada Adm.
+5.2.1.2.39 Gastos Notariales Adm.
+5.2.1.2.40 Gastos de Registro Mercantil Adm.
+5.2.1.2.41 Impuesto a los Consumos Especiales Adm.
+5.2.1.2.42 Otros Impuesto Adm.
+5.2.1.2.43 Tasas y Contribuciones Adm.
+5.2.1.2.44 Contribuciones a Superintendencia de Compañías Adm.
+5.2.1.2.45 IVA Gasto Adm.
+5.2.1.2.46 Depreciaciones Propiedades Planta y Equipos Adm.
+5.2.1.2.47 Depreciaciones de Inversiones Adm.
+5.2.1.2.48 Amortizaciones Intangibles Adm.
+5.2.1.2.49 Amortizaciones Otros Activos Adm.
+5.2.1.2.50 Gastos por Deterioro Propiedades Planta y Equipos Adm.
+5.2.1.2.51 Gastos de Deterioro Inventario Adm.
+5.2.1.2.52 Gastos por Deterioro Instrumentos Financieros Adm.
+5.2.1.2.53 Gastos por Deterioro Instrumentos Financieros Adm.
+5.2.1.2.54 Gastos por Deterioro Cuentas por Cobrar Adm.
+5.2.1.2.55 Gastos por Deterioro Otros Activos Adm.
+5.2.1.2.56 Gastos Anormales Mano de Obra Adm.
+5.2.1.2.57 Gastos Anormales Materiales Adm.
+5.2.1.2.58 Gastos Anormales Costos de Producción Adm.
+5.2.1.2.59 Gastos por Restructuracion Adm.
+5.2.1.2.60 Gastos por Valor Neto de realizacion de Inventarios Adm.
+5.2.1.2.61 Sevicios Digitales Administración
+5.2.1.2.62 Cuotas y Afiliaciones Adm.
+5.2.1.2.63 Gastos de Oficina Adm.
+5.2.1.2.63.1 Gastos de Papeleria
+5.2.1.2.63.2 Gastos de Utensilios Adm.
+5.2.1.2.63.3 Software y Licencias
+5.2.1.2.64 Capacitación y Entrenamiento Adm.
+5.2.1.2.65 Uniformes Adm.
+5.2.1.2.66 Miscelaneos Adm.
+5.2.1.2.67 Gastos Medicos Adm.
+5.2.1.2.68 Mantenimiento Vehiculos
+5.2.1.2.69 Suministros, Materiales, Repuestos y Herramientas
+5.2.1.2.70 Gasto Patente Adm.
+5.2.1.2.72 Gastos Medicos - Farmacias
+5.2.1.2.73 Depreciaciones de Vehiculos Adm
+5.2.1.2.74 Gastos 2025( Facturas de anticipos entregados )
+5.2.1.2.75 Productos y suministros varios (KM)
+5.2.1.2.76 Gasto Provisión Cuentas Incobrables
+5.2.1.2.77 Adquisiciones por Intemediación DCH
+5.2.1.3 Gastos Financieros
+5.2.1.3.1 Intereses por préstamos Inst. Financieras
+5.2.1.3.2 Comisiones Bancarias por Manejo de Cuentas
+5.2.1.3.3 Intereses por Préstamos Accionistas
+5.2.1.3.4 Gastos Diferencia en Cambio
+5.2.1.3.5 Intereses a Inst. Financieras (TC)
+5.2.1.3.6 Comisiones Aplicaciones Domicilios
+5.2.1.3.7 Comisiones Dataexpress
+5.2.1.3.8 Comisiones Medianet
+5.2.1.3.9 Comisiones Datafast
+5.2.1.3.10 Comisiones DeUna!
+5.2.1.3.11 Intereses por Préstamos a Terceros
+5.2.2 Gastos No Operacionales
+5.2.2.1 Otros Gastos no Deducibles
+5.2.2.1.1 Perdida en Inversiones en Asociadas/Subsidiarias y otras
+5.2.2.1.2 Intereses por mora con Instituciones del Estado
+5.2.2.1.3 Multas Tributarias
+5.2.2.1.4 Multas Superintendencia de Compañías
+5.2.2.1.5 Faltantes de Inventario
+5.2.2.1.6 Faltantes de Caja
+5.2.2.1.7 Comprobantes de Ventas que no cumplen requisitos legales
+5.2.2.1.8 Gastos de Viajes
+5.2.2.1.9 Gastos de Gestión
+5.2.2.1.10 Retenciones Asumidas
+5.2.2.1.11 ISD Impuesto a la Salida de Divisas
+5.2.2.1.12 Remodelación de infraestructura
+5.2.2.1.13 Descuento sin respaldo Plataformas
+5.2.2.1.14 Gastos Desarrollo de Nuevos Productos (No Usar)
+5.2.2.1.15 Gastos no Deducibles(transacciones sin respaldo)
+5.2.2.1.16 Anulaciòn Documentos
+5.2.3 Gastos de Operaciones Descontinuadas
+5.2.3.1 Gastos de Operaciones Descontinuadas

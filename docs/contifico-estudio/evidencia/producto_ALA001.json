@@ -1,0 +1,162 @@
+{
+ "campos": {
+  "id": "10460001",
+  "estado": "A=Activo",
+  "codigo": "ALA001",
+  "categoria_id": "400912",
+  "nombre": "ALITAS X 8",
+  "tipo": "PRO=Producto",
+  "tipo_producto": "COP=Compuesto",
+  "unidad_id": "331140",
+  "gasto_personal": "NAP=No aplica",
+  "pvp1": "6.913043",
+  "pvp2": "8.782609",
+  "pvp3": "8.652174",
+  "pvp_distribuidor": "8.652174",
+  "iva": "15=IVA 15%",
+  "tipo_ice": "NAP=No aplica",
+  "para_venta": "on",
+  "cuenta_venta_id": "10806992",
+  "minimo": "0.00",
+  "para_pos": "on",
+  "pos_input": "8732,8822,8917,8918",
+  "costo_maximo": "0",
+  "dias_plazo": "0"
+ },
+ "grupos": {
+  "0": {
+   "detalles": {
+    "0": {
+     "producto_detalle_id": "10460082",
+     "cantidad": "1.00",
+     "hidden_unidad": "Unidad",
+     "texto": ""
+    }
+   },
+   "nombre": "FORMULA",
+   "seleccion": "NE=No Elegible"
+  },
+  "1": {
+   "detalles": {
+    "0": {
+     "producto_detalle_id": "10460244",
+     "cantidad": "28.35",
+     "hidden_unidad": "Gramos",
+     "texto": ""
+    },
+    "1": {
+     "producto_detalle_id": "10460243",
+     "cantidad": "28.35",
+     "hidden_unidad": "Gramos",
+     "texto": ""
+    },
+    "2": {
+     "producto_detalle_id": "10460249",
+     "cantidad": "28.35",
+     "hidden_unidad": "Gramos",
+     "texto": ""
+    },
+    "3": {
+     "producto_detalle_id": "10460247",
+     "cantidad": "28.35",
+     "hidden_unidad": "Gramos",
+     "texto": ""
+    },
+    "4": {
+     "producto_detalle_id": "10460250",
+     "cantidad": "28.35",
+     "hidden_unidad": "Gramos",
+     "texto": ""
+    },
+    "5": {
+     "producto_detalle_id": "10460257",
+     "cantidad": "28.35",
+     "hidden_unidad": "Gramos",
+     "texto": ""
+    },
+    "6": {
+     "producto_detalle_id": "15863922",
+     "cantidad": "28.35",
+     "hidden_unidad": "Gramos",
+     "texto": ""
+    },
+    "7": {
+     "producto_detalle_id": "10460253",
+     "cantidad": "28.35",
+     "hidden_unidad": "Gramos",
+     "texto": ""
+    },
+    "8": {
+     "producto_detalle_id": "10460237",
+     "cantidad": "1.00",
+     "hidden_unidad": "Unidad",
+     "texto": ""
+    }
+   },
+   "nombre": "PRIMERA SALSA",
+   "seleccion": "UN=Sólo Uno"
+  },
+  "2": {
+   "detalles": {
+    "0": {
+     "producto_detalle_id": "10460244",
+     "cantidad": "28.35",
+     "hidden_unidad": "Gramos",
+     "texto": ""
+    },
+    "1": {
+     "producto_detalle_id": "10460243",
+     "cantidad": "28.35",
+     "hidden_unidad": "Gramos",
+     "texto": ""
+    },
+    "2": {
+     "producto_detalle_id": "10460249",
+     "cantidad": "28.35",
+     "hidden_unidad": "Gramos",
+     "texto": ""
+    },
+    "3": {
+     "producto_detalle_id": "10460247",
+     "cantidad": "28.35",
+     "hidden_unidad": "Gramos",
+     "texto": ""
+    },
+    "4": {
+     "producto_detalle_id": "10460250",
+     "cantidad": "28.35",
+     "hidden_unidad": "Gramos",
+     "texto": ""
+    },
+    "5": {
+     "producto_detalle_id": "10460257",
+     "cantidad": "28.35",
+     "hidden_unidad": "Gramos",
+     "texto": ""
+    },
+    "6": {
+     "producto_detalle_id": "15863922",
+     "cantidad": "28.35",
+     "hidden_unidad": "Gramos",
+     "texto": ""
+    },
+    "7": {
+     "producto_detalle_id": "10460253",
+     "cantidad": "28.35",
+     "hidden_unidad": "Gramos",
+     "texto": ""
+    },
+    "8": {
+     "producto_detalle_id": "10460237",
+     "cantidad": "1.00",
+     "hidden_unidad": "Unidad",
+     "texto": ""
+    }
+   },
+   "nombre": "SEGUNDA SALSAS",
+   "seleccion": "UN=Sólo Uno"
+  }
+ },
+ "formula_pro": {},
+ "combo": {}
+}

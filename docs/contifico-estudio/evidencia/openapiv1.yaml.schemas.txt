@@ -1,0 +1,233 @@
+
+## API_KEY
+
+## Asiento
+  - id [type=string] [description=id_integracion.]
+  - detalles
+  - glosa [type=string] [description=Glosa.]
+  - gasto_no_deducible [type=boolean] [description=Gasto no deducible.]
+  - prefijo [type=string] [description=NOM:asiento de nomina, ASI:asiento manual.]
+  - fecha [type=date] [description=Fecha (dd/mm/aaaa).]
+  required:
+
+## DetalleAsiento
+  - cuenta_id [type=string] [description=id_integracion Cuenta.]
+  - centro_costo_id [type=string] [description=id_integracion Centro de costos.]
+  - tipo [type=string] [description=Tipo de detalle D:Debe H:Haber.]
+  - valor [type=decimal] [description=Valor monetario del detalle (7 int, 6 decimal)max.]
+
+## CuentaContable
+  - id [type=string] [description=id_integracion Cuenta.]
+  - nombre [type=string] [description=Nombre de la cuenta.]
+  - codigo [type=string] [description=Código de la cuenta.]
+  - tipo [type=string] [description=Tipo de cuenta G:Grupo C:Cuenta.]
+
+## CentroCosto
+  - id [type=string] [description=id_integracion Centro de costo.]
+  - nombre [type=string] [description=Nombre del centro de costo.]
+  - codigo [type=string] [description=Código del centro de costo.]
+  - padre_id [type=string] [description=Id del centro de costo padre.]
+  - estado [type=string] [description=Estado del centro de costo en el sistema (A:Activo, I:Inactivo).]
+  - tipo [type=string] [description=Tipo de centro de costo (T:Transaccional, G:Grupo).]
+  required:
+
+## Persona
+  - id [type=string] [description=id_integracion Persona]
+  - ruc [type=string] [description=RUC]
+  - cedula [type=string] [description=Cédula]
+  - placa [type=string] [description=Placa]
+  - razon_social [type=string] [description=Nombre o Razón social]
+  - telefonos [type=string] [description=Telefonos]
+  - direccion [type=string] [description=Dirección]
+  - tipo [type=string] [description=Tipo de persona N:Natural J:Juridica I:SinId P:Placa]
+  - es_cliente [type=boolean] [description=Rol cliente ]
+  - es_proveedor [type=boolean] [description=Rol proveedor]
+  - es_empleado [type=boolean] [description=Rol empleado]
+  - es_corporativo [type=boolean] [description=Rol corporativo]
+  - aplicar_cupo [type=boolean] [description=Verificador si la persona tiene un cupo máximo como cliente.]
+  - email [type=string] [description=Correo electrónico]
+  - es_vendedor [type=boolean] [description=Rol vendedor]
+  - es_extranjero [type=boolean] [description=Verificador de personas extranjeras.]
+  - porcentaje_descuento [type=decimal] [description=Descuento de tipo cliente]
+  - adicional1_cliente [type=string] [description=Información adicional del cliente.]
+  - adicional2_cliente [type=string] [description=Información adicional del cliente]
+  - adicional3_cliente [type=string] [description=Información adicional del cliente]
+  - adicional4_cliente [type=string] [description=Información adicional del cliente]
+  - adicional1_proveedor [type=string] [description=Información adicional del proveedor]
+  - adicional2_proveedor [type=string] [description=Información adicional del proveedor]
+  - adicional3_proveedor [type=string] [description=Información adicional del proveedor]
+  - adicional4_proveedor [type=string] [description=Información adicional del proveedor]
+  - banco_codigo_id [type=string] [description=Código de banco asociado a la persona.]
+  - tipo_cuenta [type=string] [description=Tipo de la cuenta contable asociada.]
+  - numero_tarjeta [type=string] [description=Número de tarjeta de la persona.]
+  - personaasociada_id [type=string] [description=Id de la persona asociada]
+  - nombre_comercial [type=string] [description=Nombre comercial]
+  - origen [type=string] [description=Tipo de POS desde el cual se registro.]
+  - pvp_default [type=decimal] [description=PVP default]
+  - id_categoria [type=string] [description=Identificador de la categoría persona]
+  - categoria_nombre [type=string] [description=Nombre de la categoría asociada a la persona.]
+  required:
+
+## Categoria
+  - id [type=string] [description=Id de integracion Categoria]
+  - nombre [type=string] [description=Nombre de la categoría]
+  - padre_id [type=string] [description=Identificador de la categoría padre.]
+  - agrupar [type=boolean] [description=Valor que define si los productos de esta categoría se agrupan en los ]
+  - tipo_producto [type=string] [description=Identificador del tipo de producto (PROD:producto, SERV:servicio).]
+  - cuenta_venta [type=string] [description=Identificador de la cuenta para ventas.]
+  - cuenta_compra [type=string] [description=Identificador de la cuenta para compras.]
+  - cuenta_inventario [type=string] [description=Identificador de la cuenta de Inventario.]
+  required:
+
+## Bodega
+  - venta [type=boolean] [description=Indica si la bodega está marcada para la venta.]
+  - produccion [type=boolean] [description=Indica si la bodega está marcada para producción.]
+  - compra [type=boolean] [description=Indica si la bodega está marcada para la compra.]
+  - nombre [type=string] [description=Nombre de la bodega]
+  - codigo [type=string] [description=Código de la bodega]
+  - id [type=string] [description=Id de integracion Bodega]
+
+## Variante
+  - nombre [type=string] [description=Nombre de la variante]
+  - id [type=string] [description=Id de integracion Variante]
+  - valores
+
+## Valor
+  - id [type=string] [description=Id de integracion Valor]
+  - valor [type=string] [description=Valor que se encuentra asociado a cada variante en el sistema]
+
+## Producto
+  - id [type=string] [description=Id de integracion Producto]
+  - codigo [type=string] [description=Código del producto]
+  - tipo_producto [type=string] [description=SIM:simple, COM:combo, COP:compuesto, PRO:produccion]
+  - para_pos [type=boolean] [description=Variable de control para determina si el producto se utiliza en POS.]
+  - nombre [type=string] [description=Nombre del producto]
+  - codigo_barra [type=string] [description=Código de barra]
+  - categoria_id [type=string] [description=Id de integracion Categoria]
+  - marca_id [type=string] [description=Id de integracion Marca]
+  - marca_nombre [type=string] [description=Nombre de la marca ]
+  - porcentaje_iva [type=decimal] [description=Porcentaje de iva]
+  - pvp1 [type=decimal] [description=PVP 1 (7 int, 6 decimal)max.]
+  - pvp2 [type=decimal] [description=PVP 2 (7 int, 6 decimal)max.]
+  - pvp3 [type=decimal] [description=PVP 3 (7 int, 6 decimal)max.]
+  - pvp4 [type=decimal] [description=PVP 4 (7 int, 6 decimal)max.]
+  - minimo [type=decimal] [description=Valor mínino de stock que debe estar disponible (7 int, 6 decimal)max.]
+  - cantidad_stock [type=string] [description=Stock del producto.]
+  - estado [type=string] [description=Estado del producto]
+  - pvp_manual [type=boolean] [description=Precio manual]
+  - imagen [type=array] [description=Imagen del producto]
+  - descripcion [type=string] [description=Descripción del producto]
+  - personalizado1 [type=string] [description=Información adicional del producto]
+  - personalizado2 [type=string] [description=Información adicional del producto]
+  - tipo [type=string] [description=SIM:simple, COM:combo, COP:compuesto, PRO:produccion]
+  - producto_base_id [type=string] [description=Id del producto padre]
+  - nombre_producto_base [type=string] [description=Nombre del producto padre]
+  - variantes [type=array] [description=Variante]
+  - pvp_peso [type=decimal] [description=Valor de venta de peso para balanza (7 int, 6 decimal)max.]
+  - peso_desde [type=decimal] [description=Valor de peso inicial para balanza]
+  - peso_hasta [type=decimal] [description=Valor de peso final para balanza]
+  - cuenta_venta_id [type=string] [description=Id de integracion de la cuenta de venta]
+  - cuenta_compra_id [type=string] [description=Id de integracion de la cuenta de compra]
+  - cuenta_costo_id [type=string] [description=Id de integración de la cuenta de costo.]
+  - costo_maximo [type=decimal] [description=Valor de costo máximo que puede tener el producto (7 int, 6 decimal).]
+  - fecha_creacion [type=date] [description=Fecha de creación del producto (dd/mm/aaaa)]
+  - codigo_proveedor [type=string] [description=Código utilizado para catálogo de productos.]
+  - lead_time [type=integer] [description=Tiempo estimado para recepción de producto desde su solicitud.]
+  - generacion_automatica [type=boolean] [description=Variable de control para determinar si el producto se utiliza en Orden]
+  - id_integracion_proveedor [type=string] [description=Identificador de la persona proveedor en el sistema.]
+  - detalle_variantes [type=array] [description=Objeto contenedor de las variantes del producto.]
+  required:
+
+## Stock
+  - bodega_nombre [type=string] [description=Nombre de la Bodega]
+  - bodega_id [type=string] [description=Id de integracion de la Bodega]
+  - cantidad [type=decimal] [description=Cantidad actual del producto en la bodega (7 int, 6 decimal)max.]
+
+## MovimientoInventario
+  - id [type=string] [description=Id de integracion del Movimiento de Inventario]
+  - pos [type=string] [description=Id de integracion del POS]
+  - bodega_id [type=string] [description=Id de integracion de la bodega]
+  - codigo [type=string] [description=Código del movimiento de Inventario]
+  - codigo_interno [type=string] [description=Código interno]
+  - fecha [type=date] [description=Fecha del movimiento de Inventario (dd/mm/aaaa)]
+  - tipo [type=string] [description=ING:ingreso, EGR:egreso, TRA:traslado, AJU:ajuste de costo]
+  - descripcion [type=string] [description=Descripción del movimiento de Inventario]
+  - total [type=decimal] [description=Valor total del movimiento (8 int, 2 decimal)max.]
+  - detalles
+  - estado [type=string] [description=G:generado, P:pendiente]
+  - bodega_destino_id [type=string] [description=Id de integracion de la bodega destino ]
+  - maneja_venta [type=boolean] [description=Indica si maneja_venta]
+  - generar_asiento [type=boolean] [description=Indica si el movimiento se marco para generar un asiento]
+  required:
+
+## DetalleInventario
+  - cantidad [type=decimal] [description=Cantidad (7 int, 6 decimal)max.]
+  - producto_id [type=string] [description=Id de integracion]
+  - precio [type=decimal] [description=Precio (7 int, 6 decimal)max.]
+  - serie [type=string] [description=Serie]
+  - edicion [type=boolean] [description=Edición]
+  required:
+
+## GuiaRemision
+  required:
+
+## Destinatario
+  required:
+
+## DetalleDestinatario
+  required:
+
+## Marca
+  - nombre [type=string] [description=Nombre de la marca]
+  - id [type=string] [description=Id de integracion de la marca]
+
+## Documento
+  required:
+
+## BienServicioDocumento
+  required:
+
+## Cobro
+  required:
+
+## Cruce
+  required:
+
+## CruceCuenta
+  required:
+
+## CuentaBancaria
+
+## MovimientoBancario
+
+## DetalleMovimiento
+
+## Rol
+
+## DetalleRol
+
+## EstadoDocumento
+
+## ingreso
+
+## egreso
+
+## traslado
+
+## efectivo
+
+## tarjeta
+
+## transferencia
+
+## cheque
+
+## cliente
+
+## proveedor
+
+## prefactura
+
+## notacredito
+
+## liquidacion

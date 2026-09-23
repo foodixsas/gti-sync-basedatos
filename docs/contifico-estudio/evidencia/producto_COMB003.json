@@ -1,0 +1,132 @@
+{
+ "campos": {
+  "id": "10460051",
+  "estado": "A=Activo",
+  "codigo": "COMB003",
+  "categoria_id": "400919",
+  "nombre": "+ AGRANDADO",
+  "tipo": "PRO=Producto",
+  "tipo_producto": "COP=Compuesto",
+  "unidad_id": "331140",
+  "gasto_personal": "NAP=No aplica",
+  "pvp1": "0.826087",
+  "pvp2": "1.260870",
+  "pvp3": "1.173913",
+  "pvp_distribuidor": "1.173913",
+  "iva": "15=IVA 15%",
+  "tipo_ice": "NAP=No aplica",
+  "porcentaje_ice": "0.00",
+  "para_venta": "on",
+  "cuenta_venta_id": "10807000",
+  "minimo": "0.00",
+  "para_pos": "on",
+  "pos_input": "8732,8822,8917,8918",
+  "costo_maximo": "0",
+  "dias_plazo": "0"
+ },
+ "grupos": {
+  "0": {
+   "detalles": {},
+   "nombre": "FORMULA",
+   "seleccion": "NE=No Elegible"
+  },
+  "1": {
+   "detalles": {
+    "0": {
+     "producto_detalle_id": "10460037",
+     "cantidad": "29.00",
+     "hidden_unidad": "Gramos",
+     "texto": ""
+    },
+    "1": {
+     "producto_detalle_id": "10460039",
+     "cantidad": "24.00",
+     "hidden_unidad": "Gramos",
+     "texto": ""
+    },
+    "2": {
+     "producto_detalle_id": "10460040",
+     "cantidad": "33.00",
+     "hidden_unidad": "Gramos",
+     "texto": ""
+    },
+    "3": {
+     "producto_detalle_id": "10460041",
+     "cantidad": "31.00",
+     "hidden_unidad": "Gramos",
+     "texto": ""
+    },
+    "4": {
+     "producto_detalle_id": "10460042",
+     "cantidad": "24.00",
+     "hidden_unidad": "Gramos",
+     "texto": ""
+    },
+    "5": {
+     "producto_detalle_id": "10460063",
+     "cantidad": "58.55",
+     "hidden_unidad": "Gramos",
+     "texto": ""
+    },
+    "6": {
+     "producto_detalle_id": "10460278",
+     "cantidad": "52.00",
+     "hidden_unidad": "Gramos",
+     "texto": ""
+    },
+    "7": {
+     "producto_detalle_id": "10460279",
+     "cantidad": "57.00",
+     "hidden_unidad": "Gramos",
+     "texto": ""
+    },
+    "8": {
+     "producto_detalle_id": "12381869",
+     "cantidad": "1.00",
+     "hidden_unidad": "Unidad",
+     "texto": ""
+    },
+    "9": {
+     "producto_detalle_id": "12381885",
+     "cantidad": "1.00",
+     "hidden_unidad": "Unidad",
+     "texto": ""
+    },
+    "10": {
+     "producto_detalle_id": "12381858",
+     "cantidad": "1.00",
+     "hidden_unidad": "Unidad",
+     "texto": ""
+    }
+   },
+   "nombre": "BEBIDA",
+   "seleccion": "UN=Sólo Uno"
+  },
+  "2": {
+   "detalles": {
+    "0": {
+     "producto_detalle_id": "10460069",
+     "cantidad": "105.00",
+     "hidden_unidad": "Gramos",
+     "texto": ""
+    },
+    "1": {
+     "producto_detalle_id": "15861328",
+     "cantidad": "170.00",
+     "hidden_unidad": "Gramos",
+     "texto": ""
+    },
+    "2": {
+     "producto_detalle_id": "10460073",
+     "cantidad": "0.01",
+     "hidden_unidad": "Gramos",
+     "texto": ""
+    }
+   },
+   "nombre": "ACOMPAÑANTE",
+   "seleccion": "UN=Sólo Uno"
+  }
+ },
+ "formula_pro": {},
+ "combo": {}
+}
