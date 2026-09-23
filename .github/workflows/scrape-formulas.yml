@@ -1,0 +1,40 @@
+name: Fórmulas con grupos (Contífico web)
+
+# Lee la fórmula de cada producto compuesto/producido activo desde el HTML de
+# Contífico (único lugar donde vienen los grupos Fijo / Sólo uno / Varios o ninguno)
+# y la guarda en contifico_web.formula_linea. Sin navegador: login web por HTTP.
+# Latido: una fila por corrida en contifico_web.formula_run.
+
+on:
+  schedule:
+    - cron: '40 9 * * *'   # 09:40 UTC = 04:40 Ecuador (después de costos y movimientos)
+  workflow_dispatch:
+    inputs:
+      codigos:
+        description: 'Opcional: códigos separados por espacio (vacío = todos)'
+        required: false
+        default: ''
+
+concurrency:
+  group: scrape-formulas
+  cancel-in-progress: false
+
+jobs:
+  leer:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+      - run: npm ci
+      - name: Leer fórmulas
+        env:
+          CONTIFICO_EMAIL: ${{ secrets.CONTIFICO_EMAIL }}
+          CONTIFICO_PASSWORD: ${{ secrets.CONTIFICO_PASSWORD }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          TZ: America/Guayaquil
+        run: npx tsx src/scripts/scrape-formulas.ts ${{ inputs.codigos }}
