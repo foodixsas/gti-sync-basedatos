@@ -1,0 +1,159 @@
+/sistema/empresa/configuracion/		header-tooltip
+/sistema/contabilidad/libro_diario/asiento/registrar/	Asiento	text
+/sistema/registro/documento/registrar/?proforma=1	Proforma	text
+/sistema/registro/documento/registrar/?cotizacion=1	Cotización	text
+/sistema/registro/documento/registrar/?prefactura=1	Prefactura	text
+/sistema/registro/documento/registrar/?de=1	Documento Electrónico	text
+/sistema/registro/documento/registrar/	Documento Físico	text
+/sistema/registro/transaccion/registrar/	Cobro/Pago	text
+/sistema/registro/transaccion/registrar/?masivo=1	Pago Masivo	text
+/sistema/registro/transaccion/cruzar_documentos/	Cruce	text
+/sistema/registro/deposito/registrar/	Depósito	text
+/sistema/banco/movimiento/registrar/	Movimiento	text
+/sistema/banco/movimiento/registrar/?tipo_registro=I&tipo_movimiento=D	Depósito	text
+/sistema/banco/movimiento/registrar/?tipo_registro=E&tipo_movimiento=T	Transferencia	text
+/sistema/banco/anticipo/registrar/	Anticipo	text
+/sistema/banco/reposicion/registrar/	Rep. Caja Chica	text
+/sistema/banco/conciliacion/registrar/	Conciliación	text
+/sistema/banco/cheque_protestado/registrar/	Cheque Protestado	text
+/sistema/tarjeta_credito/liquidacion/registrar/	Liquidación TC	text
+/sistema/empresa/configuracion/usuario/registrar/	Usuario	text
+/sistema/persona/registrar/	Persona	text
+/sistema/rrhh/pago/agregar_descuento/?tipo_conf=RPM	Préstamo	text
+/sistema/rrhh/periodo_pagos_beneficios/	Pago Beneficio	text
+/sistema/inventario/producto/registrar2/	Producto	text
+/sistema/inventario/movimiento/registrar/	Movimiento	text
+/sistema/inventario/tomafisica/registrar/	Toma Física	text
+/sistema/inventario/produccion/registrar/	Producción	text
+/sistema/registro/documento/guiaremision/registrar/	Guía de Remisión	text
+/sistema/activo_fijo/activo/registrar/	Activo Fijo	text
+/sistema/fidelizacion/segmentos/crear/	Segmento	text
+/sistema/fidelizacion/niveles/crear/	Nivel	text
+/sistema/fidelizacion/promociones/crear/	Promoción	text
+/sistema/fidelizacion/reglas_consumo/crear/	Regla Consumo	text
+/sistema/administracion/perfil/	Mi perfil	
+/sistema/contrato/mi_cuenta/	Mi cuenta	
+/sistema/accounts/logout/	Salir	
+/sistema/empresa/solicitudes/		col-md-4 col-xs-12
+/sistema/reportes/resumen/	Inicio	
+/sistema/empresa/configurar_facturacion_wizard/	Configurar Facturación	
+/sistema/contabilidad/libro_diario/	Asientos	text
+/sistema/contabilidad/libro_diario/asiento/registrar/		icon icon-c-plus
+/sistema/contabilidad/ejercicio_contable/	Ejercicios Contables	
+/sistema/contabilidad/cuenta/	Plan de Cuentas	
+/sistema/contabilidad/centro_costo/	Centros de Costos	
+/sistema/persona/	Personas	text
+/sistema/persona/registrar/		icon icon-c-plus
+/sistema/inventario/producto/	Productos	text
+/sistema/inventario/producto/registrar2/		icon icon-c-plus
+/sistema/inventario/movimiento/	Movimientos	text
+/sistema/inventario/movimiento/registrar/		icon icon-c-plus
+/sistema/inventario/tomafisica/	Toma Física	text
+/sistema/inventario/tomafisica/registrar/		icon icon-c-plus
+/sistema/inventario/produccion/	Producciones	text
+/sistema/inventario/produccion/registrar/		icon icon-c-plus
+/sistema/registro/documento/guiaremision/	Guía de Remisión	text
+/sistema/registro/documento/guiaremision/registrar/		icon icon-c-plus
+/sistema/activo_fijo/activo/	Activos Fijos	text
+/sistema/activo_fijo/activo/registrar/		icon icon-c-plus
+/sistema/inventario/unidad/	Unidades	
+/sistema/inventario/producto/categoria/	Categorías	
+/sistema/inventario/bodega/	Bodegas	
+/sistema/importacion/configuraciones/	Importaciones	
+/sistema/activo_fijo/configuraciones/	Activos Fijos	
+/sistema/rrhh/pago/registrar_pago/?tipo_rol=RPM	Pagos Mensuales	
+/sistema/rrhh/pago/registrar_pago/?tipo_rol=RPQ	Pagos Quincenales	
+/sistema/rrhh/periodos/	Roles	
+/sistema/rrhh/prestamos/	Préstamos	text
+/sistema/rrhh/pago/agregar_descuento/?tipo_conf=RPM		icon icon-c-plus
+/sistema/rrhh/consultar_periodos_beneficios/	Plantillas Décimos	text
+/sistema/rrhh/periodo_pagos_beneficios/		icon icon-c-plus
+/sistema/rrhh/movimientos/consultar_movimientos/	Pagos	
+/sistema/rrhh/configuraciones/	Configuraciones	
+/sistema/fidelizacion/segmentos/	Segmentos	text
+/sistema/fidelizacion/segmentos/crear/		icon icon-c-plus
+/sistema/fidelizacion/niveles/	Niveles	text
+/sistema/fidelizacion/niveles/crear/		icon icon-c-plus
+/sistema/fidelizacion/promociones/	Promociones	text
+/sistema/fidelizacion/promociones/crear/		icon icon-c-plus
+/sistema/fidelizacion/promociones/reporte/	Reporte	
+/sistema/fidelizacion/reglas_consumo/	Reglas Consumos	text
+/sistema/fidelizacion/reglas_consumo/crear/		icon icon-c-plus
+/sistema/fidelizacion/dashboard/	Dashboard	
+/sistema/registro/electronicos/importar/retenciones/	Carga de Retenciones	
+/sistema/registro/electronicos/importar/facturas/	Carga de Compras	text
+/sistema/registro/documento/?proforma=1	Proformas	text
+/sistema/registro/documento/registrar/?proforma=1		icon icon-c-plus
+/sistema/registro/documento/?proforma=1&tipo_documento=COT	Cotizaciones	text
+/sistema/registro/documento/registrar/?cotizacion=1		icon icon-c-plus
+/sistema/registro/documento/?proforma=1&tipo_documento=PRE	Prefacturas	text
+/sistema/registro/documento/registrar/?prefactura=1		icon icon-c-plus
+/sistema/registro/documento/	Documentos	
+/sistema/registro/documento/?tipo_registro=CLI	Clientes	text
+/sistema/registro/documento/registrar/?de=1		icon icon-c-plus
+/sistema/registro/documento/?tipo_registro=PRO	Proveedores	text
+/sistema/registro/documento/registrar/?proveedor=1		icon icon-c-plus
+/sistema/registro/documento/?emision=FI	Físicos y Otros	text
+/sistema/registro/documento/registrar/		icon icon-c-plus
+/sistema/registro/documento_anulado/	Anulaciones	
+/sistema/registro/transaccion/	Cobros/Pagos	text
+/sistema/registro/transaccion/registrar/		icon icon-c-plus
+/sistema/registro/transaccion/?tipo=CPM	Cobros/Pagos Masivos	text
+/sistema/registro/transaccion/registrar/?masivo=1		icon icon-c-plus
+/sistema/registro/transaccion/?tipo=R	Pagos con Cruce	text
+/sistema/registro/transaccion/cruzar_documentos/		icon icon-c-plus
+/sistema/registro/deposito/	Depósitos	text
+/sistema/registro/deposito/registrar/		icon icon-c-plus
+/sistema/pos/consultar_pos/	POS	text
+/sistema/pos/xml/	Generar archivos	
+/sistema/pos/importar_ventas/	Subir Ventas	
+/sistema/banco/consultar_movimientos/	Estado de Cuenta	
+/sistema/banco/movimientos/	Movimientos	text
+/sistema/banco/movimiento/registrar/		icon icon-c-plus
+/sistema/banco/movimientos/?tipo_movimiento=D	Depósitos	text
+/sistema/banco/movimiento/registrar/?tipo_registro=I&tipo_movimiento=D		icon icon-c-plus
+/sistema/banco/movimientos/?tipo_movimiento=T	Transferencias	text
+/sistema/banco/movimiento/registrar/?tipo_registro=E&tipo_movimiento=T		icon icon-c-plus
+/sistema/banco/movimientos/?generado=ANT	Anticipos	text
+/sistema/banco/anticipo/registrar/		icon icon-c-plus
+/sistema/registro/transaccion/?tipo=P&forma_pago=CAJA CHICA	Rep. Caja Chica	text
+/sistema/banco/reposicion/registrar/		icon icon-c-plus
+/sistema/banco/conciliacion/	Conciliación Bancaria	text
+/sistema/banco/conciliacion/registrar/		icon icon-c-plus
+/sistema/banco/cheque_protestado/	Cheques Protestados	text
+/sistema/banco/cheque_protestado/registrar/		icon icon-c-plus
+/sistema/tarjeta_credito/liquidacion/	Liquidaciones	text
+/sistema/tarjeta_credito/liquidacion/registrar/		icon icon-c-plus
+/sistema/tarjeta_credito/lote/	Lotes	
+/sistema/tarjeta_credito/comercio/	Configuraciones	
+/sistema/banco/cuentas_bancarias/	Configuraciones	text
+/sistema/reportes/panel/	Panel de Control	
+/sistema/reportes/estado_perdidas_ganancias/	Estado de Resultados	
+/sistema/reportes/balance_general/	Balance General	
+/sistema/reportes/balance_comprobacion/	Balance de Comprobación	
+/sistema/reportes/flujo_caja/	Flujo de caja	
+/sistema/reportes/ventas_gerencial/	Resumen Gerencial	
+/sistema/reportes/ventas_nuevo/	Ventas	
+/sistema/reportes/ventas_semanal/	Semanal	
+/sistema/reportes/ventas_gerencial_detalle/	Por Productos/Servicios	
+/sistema/reportes/ventas_vendedor/	Por Vendedor	
+/sistema/reportes/margen_bruto/	Costos de Venta	
+/sistema/reportes/gastos_no_deducibles/	Gastos no Deducibles	
+/sistema/reportes/control_cartera_op/	Control de Cartera	
+/sistema/reportes/control_anticipos/	Control de Anticipos	
+/sistema/reportes/saldos_inventario/	Saldos	
+/sistema/reportes/saldos_disponible/	Saldos Disponibles	
+/sistema/reportes/movimientos_inventario/	Kardex	
+/sistema/reportes/bitacora_importacion/	Bitácora Importación	
+/sistema/reportes/comparativo_asientos/	Inventario vs. Asientos	
+/sistema/reportes/cuentas/	Consulta Cuentas/Mayor	
+/sistema/reportes/ats/	ATS	
+/sistema/reportes/formularios103/	Formulario 103	
+/sistema/reportes/formularios104/	Formulario 104	
+/sistema/reportes/compras_ventas/	Compras y Ventas	
+/sistema/reportes/dinardap/	Reporte Dinardap	
+/sistema/reportes/personalizados_comprasventas/	Compras/Ventas (Personalizado)	
+/sistema/reportes/log_extendido/	Log de Actividades	
+/sistema/reportes/reporte_cartera_contabilidad/	Cartera vs. Contabilidad	
+/sistema/firmador/firmar_documento/	Firmar Documento	text
+/sistema/firmador/documentos_firmados/	Documentos firmados	text
