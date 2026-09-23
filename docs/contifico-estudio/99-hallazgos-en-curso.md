@@ -33,3 +33,14 @@ Notas crudas que luego se reparten en las fichas. Cada punto lleva su evidencia.
 - Módulos no listados en el prompt que sí existen: **Fidelización** (segmentos, niveles, promociones, reglas de consumo, dashboard), **Activos fijos**, **Tarjeta de crédito** (liquidaciones, lotes), **Importaciones**, **POS** (consultar, generar archivos, subir ventas), **Proyectos**, **Gift cards**, **Lotes y series**.
 - Multiempresa: `empresa/buscar/` + `empresa_buscar_id` en cada página. Soporte: `empresa/solicitudes/` (tickets con asesor). Contífico pertenece a **Siigo** (`contifico.portaldeclientes.siigo.ec`).
 - El texto "Esta acción no está disponible para tu plan" aparece como modal oculto en todas las páginas: no es una limitación real por sí sola.
+
+## Segunda tanda (fin del barrido, 128 URLs + reintentos)
+- **Configuración de la empresa** en JSON por pestaña (`evidencia/empresa-configuracion.txt`): plan PREMIUM; módulos RRHH y Fidelización activos, CRM/Presupuesto no; agente de retención; firma vence 2028-08-16; firmado automático; 49 tipos de retención IR + 13 IVA con cuentas; almacenamiento al 100 %.
+- **POS = punto de emisión con bodega**: 12 POS (`evidencia/catalogos-web.txt`), incluidos "API PRODUCCION" (004-003), "Liquidación de tarjetas de crédito" (005-001) e "Integración Alianza Pronto" (999-999). ⚠ 005-001 aparece como Simón Bolón en las cajas de Depósito y como liquidación TC en POS: cambió de uso.
+- **Tarjeta de crédito**: 21 comercios (DataExpress, Datafast, Medianet por POS) y lotes diarios por POS/red con cobrado vs liquidado; todos "Pendiente (Faltante)".
+- **Plan de cuentas**: 1,019 cuentas extraídas del HTML (`evidencia/plan-de-cuentas.txt`): cajas chicas por local y área, 9 bancos, etc.
+- **Toma física**: por bodega, cantidad sistema vs registrada vs diferencia, genera ING/EGR con asiento opcional; carga por archivo.
+- **Bandeja electrónica**: compras y retenciones recibidas del SRI ("Por registrar" / "Registradas"), con importación a documentos.
+- **Cobros/Pagos lista**: filtros por tipo (C, P, PM, CM, CPM, R cruce), postfechados, repuesto (caja chica), depositado, cuenta afectada.
+- **Nómina**: la lista de roles trae un modal "Bloqueada — Nómina de Empleados… comunicarse a soporte@contifico.com" (plantilla oculta; ⚠ no verificado si aplica a FOODIX). Las listas de roles y de fidelización se cargan por AJAX (Vue) y no vienen en el HTML.
+- **Firmador**: firma de PDFs arbitrarios con el certificado de la empresa + registro de firmados.
