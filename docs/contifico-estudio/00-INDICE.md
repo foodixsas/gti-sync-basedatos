@@ -45,7 +45,7 @@
 - ❌ **Almacenamiento de Contífico al 100 %** (1,047 MB de 1,047 MB, 31 KB libres; `empresa/configuracion/general/`). Adjuntos, exports y respaldos pueden fallar. Pedir ampliación (`aumentar_espacio`) o limpiar adjuntos.
 - ⚠ **Lotes de tarjeta sin liquidar**: todos los lotes del 19 al 22-sep aparecen "Pendiente (Faltante)" con liquidado $0 (`tarjeta_credito/lote/`). Contífico ya agrupa los cobros TC por lote y espera la liquidación; hoy esa conciliación se hace afuera.
 - ⚠ Certificado de firma electrónica vence el **2028-08-16**.
-- ⚠ Al abrir `inventario/produccion/registrar/` se creó/abrió un borrador provisional (id 964838, estado S) con la cuenta del scraper; no aparece en la lista de septiembre. Confirmar con Contabilidad que no estorba.
+- ✅ Resuelto: al abrir `inventario/produccion/registrar/` por GET, Contífico creó un borrador provisional vacío (id 964838, PRO 202609000138, estado S, sin líneas). Verificado y eliminado el 22-sep (GET `…/964838/eliminar/`; ahora responde 404 y no queda ninguna producción provisional). **Regla:** nunca abrir `produccion/registrar/` por GET; para estudiar el formulario usar una producción existente.
 - ⚠ 13 usuarios de 16; 6 digitadores; sin aprobadores configurados.
 
 ## Pendientes del estudio (próxima sesión)
