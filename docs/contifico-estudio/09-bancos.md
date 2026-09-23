@@ -31,11 +31,11 @@ API v1 movimientos bancarios; web `banco/movimientos/?tipo_movimiento=D|T&genera
 
 ## 6. Uso real en FOODIX
 - 18,311 movimientos bancarios en el espejo (hasta 2025; ⏳ 2026); 9 cuentas bancarias (Produbanco ×3, Pichincha, DeUna, Guayaquil, JUSTO, Internacional, Bolivariano; 2 inactivas), cada una con su cuenta contable (`evidencia/catalogos-web.txt`).
-- **Tarjeta de crédito SÍ se usa**: 21 comercios configurados (redes DataExpress, Datafast, Medianet; uno por POS/local, más "DATAFAST API", "APP UNO", "POS Viche Pez"); la lista de **lotes** muestra un lote por POS, red y día con RECAP, número de vales, total cobrado, total liquidado y estado ("Pendiente (Faltante)" en todos los de 19–22-sep-2026: cobrado $73–$1,472 por lote, liquidado $0). Es decir, Contífico ya agrupa los cobros TC en lotes y espera la liquidación del banco; FOODIX hace esa conciliación afuera (proyecto Conciliación de Lotes) y aquí queda todo pendiente.
+- **Tarjeta de crédito SÍ se usa**: 21 comercios configurados (redes DataExpress, Datafast, Medianet; uno por POS/local, más "DATAFAST API", "APP UNO", "POS Viche Pez"); la lista de **lotes** muestra un lote por POS, red y día con RECAP, número de vales, total cobrado, total liquidado y estado (los del 19–22-sep-2026 aún "Pendiente (Faltante)" por el rezago del banco). **Las liquidaciones sí se registran**: varias por día en `tarjeta_credito/liquidacion/` (ej. 18-sep: 3 de Produbanco por $1,118, $578 y $269; Guayaquil por $25.80), cada una con su retención editable. Contífico cierra el ciclo cobro TC → lote → liquidación → retención; FOODIX además concilia lotes contra el estado de cuenta en el dashboard.
 - 58,310 cobros con TC en 2026 ($1.27 M).
 
 ## 7. Defectos y aciertos
-- ✅ Liquidación de tarjeta modela exactamente el problema real (lote → depósito neto → comisión → retenciones del banco): vale copiar. Los lotes ya existen en Contífico con cobrado vs liquidado; el trabajo que FOODIX hace afuera podría cerrarse adentro (⏳ evaluar por qué no se usa: ¿carga del estado de cuenta del adquirente?).
+- ✅ Liquidación de tarjeta modela exactamente el problema real (lote → depósito neto → comisión → retenciones del banco): vale copiar. Los lotes y las liquidaciones diarias ya viven en Contífico; el asiento del día 15-sep muestra "Depósito de Liquidación de tarjeta de crédito" (9) y "Retención de Liquidación…" (16).
 - ✅ Anticipos y caja chica integrados con contabilidad.
 - ❌ Sin importación automática de estados de cuenta (⏳ verificar si existe carga de archivo en conciliación).
 - ⚠ El espejo `trx_bancos_movimientos` termina en 2025: hay que revisar el sync antes de usarlo.

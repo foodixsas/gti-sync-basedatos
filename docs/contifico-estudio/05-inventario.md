@@ -39,7 +39,7 @@ Filtros: `filtro`, `categoria_id` (árbol de 92 categorías con checkboxes `cate
 `inventario/producto/seleccionar/?filtro=<texto>` devuelve HTML con `selectObj(<pk>)` por fila → forma barata de resolver **código → pk Django** (COMB001 = 10460049, COMB003 = 10460051, PROU020 = 16092658, ALA001 = 10460001).
 
 ## 3. Flujos y estados
-- Venta de un COP en POS: la factura lleva una línea con el compuesto; el inventario descuenta los ingredientes de la fórmula (⏳ verificar con un EGR "VENTA PUNTO DE VENTA" y su detalle en `contifico_web.mov_inventario_detalle`).
+- **Venta de un COP en POS: la factura lleva una línea con el compuesto y el inventario descuenta los componentes de la fórmula, nunca el compuesto.** Verificado el 15-sep-2026: los EGR "VENTA PUNTO DE VENTA" del día tienen 4,531 líneas y todas son productos `PRO` (51 distintos, ej. CP008 CHICHARRÓN 251 g) o `SIM` (60, ej. ACOM002 EMPANADA 2 u); cero líneas `COP`. Los EGR de venta son **uno por factura**: 13-sep 703, 14-sep 431, 15-sep 527 EGR contra 523 facturas de cliente el 15-sep. Además, la **toma física se usa a diario**: entre 9 y 35 movimientos TFI por día en 5–7 bodegas durante septiembre 2026 (`evidencia/fase2b.txt`), cada uno con su EGR/ING de ajuste (el 15-sep, 160 y 138 líneas en dos bodegas).
 - Producción: P → R al confirmar; genera EGR de insumos y ING de PT (Movimientos con `origen=PRO`, referencia `PRO 2026…`); costo unitario del PT = suma de insumos / cantidad producida (⏳ verificar en export `excel=3`).
 - Movimientos: estado G (generado) / P (pendiente) en la API; `generar_asiento` decide si contabiliza.
 - Costeo: promedio ponderado (⏳ documentar cuándo recalcula: al ING con `precio`, al AJU).

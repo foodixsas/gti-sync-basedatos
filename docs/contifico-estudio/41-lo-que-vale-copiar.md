@@ -1,0 +1,24 @@
+# 41 · Lo que Contífico hace bien y conviene copiar
+
+| # | Acierto | Dónde se ve | Qué copiar |
+|---|---|---|---|
+| 1 | **Producto tipo Combo (COM) además del Compuesto (COP)** | `inventario/producto/` filtro y sección "Combo" del form; API `tipo_producto` SIM/COM/COP/PRO | Combo = productos terminados con cantidad, precio por componente y cuenta de venta; Compuesto = receta con grupos fijos y variables. Son dos cosas y el sistema propio debe tener ambas. |
+| 2 | **Fórmula con grupos y modo de selección** | `tipo_formula_N-nombre`, `seleccion` NE/UN/VA, detalles con cantidad y unidad (ALA001, COMB001) | El modelo de datos de la receta con opciones es correcto; solo falta exportarlo bien y costear por mezcla. |
+| 3 | **Asientos automáticos por origen, con tipo consultable** | Libro diario `tipo` = Compra, Venta, Depósito, Inventario, Retención, Nómina, Importación, Depreciación, Cierre | Motor de contabilización por evento con reglas por tipo de documento y cuentas por producto/categoría/persona. |
+| 4 | **Cuentas contables tipadas por uso** | Selectores `cuenta/seleccionar/?tipocuenta=Banco|RETENCIONES|INVENTARIABLE|INGRESO|GASTO|Cuenta por Cobrar…` | Cada campo que recibe una cuenta solo acepta cuentas del tipo correcto. |
+| 5 | **Dos dimensiones analíticas en cada línea** | Centro de costo (árbol) y Proyecto en asientos, documentos, movimientos, bancos | Mantener CC y proyecto en toda línea contable y de inventario; bodega ↔ centro de costo por defecto. |
+| 6 | **Retención embebida en la compra y numerada aparte** | `retencion_template`/`retencion_iva_template` con código SRI, base, %, valor; `config_retencionesindependientes`; retención electrónica con su secuencia 001-PPP | Retención como entidad ligada al documento, con catálogo SRI y emisión electrónica propia. |
+| 7 | **Liquidación de tarjeta por lote (RECAP)** | `tarjeta_credito/lote/` y `liquidacion/registrar/`: lote → depósito neto, comisión (+IVA), retenciones del banco, cuenta por cobrar TC | Copiar tal cual: es el modelo exacto de la conciliación de tarjetas. |
+| 8 | **Cierre de caja como Depósito por POS** | `registro/deposito/registrar/`: caja, fecha de corte, transacciones en efectivo y pagos desde caja, banco destino | Cierre de caja = entidad que agrupa cobros por caja y produce el depósito y su asiento. |
+| 9 | **POS = punto de emisión con bodega y comercio de tarjeta** | `pos/consultar_pos/`, `tarjeta_credito/comercio/` | Jerarquía establecimiento → punto → caja → bodega → adquirente/red. |
+| 10 | **Permisos atómicos por entidad y acción + restricciones operativas** | ~300 flags `<área>_<entidad>_<con|agr|mod|eli|gen|aprob>`, horario, descuento máximo, anular, editar IVA, ver costo promedio | Modelo de permisos por acción con restricciones de negocio, no solo por rol. |
+| 11 | **Formas de pago y cobro con códigos SRI** | `forma_pago` 01–21, `forma_cobro` CAJA/TC/TRANSF/ELEC, `tipo_tarjeta`, `bin_tarjeta`, `lote` en `cobros[]` | Catálogo SRI de formas de pago en el cobro; datos de tarjeta por cobro (bin, lote) para conciliar. |
+| 12 | **Bandeja electrónica del SRI** | `registro/electronicos/importar/facturas|retenciones/`: comprobantes recibidos → compras con un clic | Ingesta de XML recibidos (compras y retenciones) como origen de documentos. |
+| 13 | **Configuración de nómina contable por grupo de pago** | `rrhh/configuraciones/`: cuenta de gasto y pasivo por rubro × grupo (adm/vta/cto/otr), IESS 9.35/9.45, extensión conyugal | Mapa contable de nómina parametrizable; ya está el detalle en `06-rrhh-nomina.md`. |
+| 14 | **Toma física con diferencia y asiento opcional** | `inventario/tomafisica/registrar/`: cantidad sistema vs real vs diferencia, genera ING/EGR con cuentas | Conteo → diferencias → ajustes con asiento, por bodega. |
+| 15 | **Producción con proyectado, producido, desecho y diferencia** | `inventario/produccion/`: estados P/R/S, solicitud de materiales, costo unitario del PT | Orden de producción con teórico vs real y merma. |
+| 16 | **Ejercicios con cierre mensual y día de cierre** | `contabilidad/ejercicio_contable/` | Bloqueo de períodos cerrados por fecha. |
+| 17 | **Segmentación y promociones acotadas** | Fidelización: recencia/frecuencia/monto/aniversario; promociones por POS, día y hora; reporte de canjes por centro de costo | Lista de requisitos para Simón Puntos y promociones. |
+| 18 | **Configuración como JSON por pestaña** | `empresa/configuracion/<tab>/` | Parámetros de empresa versionados y exportables. |
+| 19 | **Historial por documento y por producto** | Permisos `reg_compraventa_historial_documento`, `inv_producto_historial`, `reportes/log_extendido/` | Auditoría por entidad con usuario, pantalla y actividad. |
+| 20 | **Latencia baja de la API para lo básico** | Factura visible 4–25 s después de emitida | Eventos en tiempo casi real para WhatsApp/fidelidad. |

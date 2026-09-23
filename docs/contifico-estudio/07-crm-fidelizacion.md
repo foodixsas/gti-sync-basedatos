@@ -28,7 +28,7 @@ Puntos por compra, eventos, multiplicadores; promociones por combo o producto co
 Solo web; listas con `excel`/`pdf` en segmentos, niveles y promociones.
 
 ## 6. Uso real en FOODIX
-⏳ Filas de las listas (segmentos, niveles, promociones, reglas). Hipótesis: no se usa; FOODIX construyó **Simón Puntos** (`gmkt_crm_puntos_mov`, 1 $ = 1 punto, activación por WhatsApp) y las encuestas/CRM en `gmkt_marketing`. Reportar si hay datos.
+**No se usa**: `fidelizacion/ajax/segmento/`, `ajax/nivel/` y `ajax/regla_ganancia/` devuelven `count = 0` (22-sep-2026). FOODIX construyó **Simón Puntos** (`gmkt_crm_puntos_mov`, 1 $ = 1 punto, activación por WhatsApp) y las encuestas/CRM en `gmkt_marketing`.
 
 ## 7. Defectos y aciertos
 - ✅ Vale copiar: segmentación por recencia/frecuencia/monto/aniversario, reglas de puntos por evento y multiplicador, promociones acotadas por POS, día y hora, reporte de canjes por centro de costo. Es una lista de requisitos lista para el programa de fidelidad propio.
