@@ -36,17 +36,24 @@ function cliente() {
 }
 
 /**
- * Cuándo muere la sesión de verdad.
+ * Cuándo muere la sesión de verdad. Tres candidatas, y solo una sirve — medido el
+ * 28-sep-2026 comparando el estado guardado antes y después de tocar el portal:
  *
- * NO es la cookie que vence primero: `__cf_bm` (el anti-bot de Cloudflare) dura 30
- * minutos y se regenera sola en cada visita, así que mirar el mínimo da un susto
- * falso cada media hora. La que manda es `jwt-session`, y dura 24 horas justas.
+ *   __cf_bm         30 min   anti-bot de Cloudflare; se regenera sola. Mirar el
+ *                            mínimo da un susto falso cada media hora.
+ *   jwt-session      24 h    NO se renueva al visitar el portal: quedó clavada en
+ *                            el mismo vencimiento entre dos corridas. Si fuera la
+ *                            vital, la alerta gritaría todos los días sin motivo.
+ *   jwt-session-uem   7 d    SÍ se renueva: pasó de vencer el 05-oct 18:34 a
+ *                            vencer el 05-oct 19:11, que es la hora de la corrida
+ *                            más siete días. Ventana deslizante. ESTA es la vital.
  *
- * Ese dato explica el corte del 26 al 28-sep-2026: la carga corre una vez al día y
- * la cookie vive un día. No había holgura ninguna — bastaba que una corrida fallara
- * para que la sesión muriera antes de la siguiente.
+ * Y explica el corte del 26 al 28-sep con exactitud: la sesión se exportó el 18 de
+ * septiembre, esta cookie vencía siete días después (el 25) y la carga murió el 26.
+ * Se renovaba en cada corrida... pero el proceso la tiraba al cerrar y volvía a leer
+ * la del secreto, que envejecía sola hasta morir. Ese es el bucle que se rompió.
  */
-export const COOKIE_VITAL = 'jwt-session';
+export const COOKIE_VITAL = 'jwt-session-uem';
 
 export function expiraPrimero(state: StorageState): Date | null {
   const vital = (state.cookies ?? []).find(c => c.name === COOKIE_VITAL);
