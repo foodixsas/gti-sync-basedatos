@@ -1,0 +1,50 @@
+name: Uber — mantener viva la sesión y avisar si se cae
+
+# POR QUÉ EXISTE
+# Del 26 al 28-sep-2026 la carga de Uber estuvo muerta y nadie se enteró: se
+# descubrió porque Daniel pidió un reporte y los datos se cortaban en el día 23.
+#
+# La causa de fondo no fue que la sesión venciera, sino que NO HABÍA HOLGURA:
+# la cookie jwt-session dura 24 horas justas y la carga corría una vez al día.
+# Con cero margen, un solo fallo mataba la sesión antes del siguiente intento.
+#
+# Este trabajo toca el portal cada 6 horas y guarda la sesión renovada, así que
+# hacen falta cuatro fallos seguidos para perderla. Y si aun así se cae, avisa
+# por WhatsApp el mismo día en vez de esperar a que alguien lo note.
+
+on:
+  schedule:
+    # Cada 6 horas: 00:20, 06:20, 12:20 y 18:20 UTC (19:20, 01:20, 07:20 y 13:20 en Ecuador).
+    # El :20 evita la hora en punto, que es cuando GitHub tiene más cola y más retrasos.
+    - cron: '20 */6 * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: uber-sesion-viva
+  cancel-in-progress: false
+
+jobs:
+  mantener:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - run: npm ci
+
+      # Sin navegador: son llamadas HTTP con la sesión guardada. Por eso tarda segundos.
+      - name: Renovar la sesión y medir si los datos siguen llegando
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          UBER_STORAGE_STATE: ${{ secrets.UBER_STORAGE_STATE }}
+          WHATSAPP_BOT_URL: ${{ secrets.WHATSAPP_BOT_URL }}
+          WHATSAPP_BOT_API_KEY: ${{ secrets.WHATSAPP_BOT_API_KEY }}
+          ALERTAS_GRUPO_JID: ${{ secrets.ALERTAS_GRUPO_JID }}
+          TZ: America/Guayaquil
+        run: npm run --silent uber-sesion-viva

@@ -45,6 +45,10 @@ jobs:
 
       - name: Pedir, esperar y bajar el informe
         env:
+          # Supabase va acá porque desde el 28-sep-2026 la sesión de Uber se lee y se
+          # guarda en la base: es lo que la mantiene viva de una corrida a la otra.
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           UBER_STORAGE_STATE: ${{ secrets.UBER_STORAGE_STATE }}
           UBER_ESPERA_MAX_S: '900'
           TZ: America/Guayaquil
@@ -67,6 +71,10 @@ jobs:
       - name: Pedir y bajar Operaciones y Opiniones
         continue-on-error: true
         env:
+          # Supabase va acá porque desde el 28-sep-2026 la sesión de Uber se lee y se
+          # guarda en la base: es lo que la mantiene viva de una corrida a la otra.
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           UBER_STORAGE_STATE: ${{ secrets.UBER_STORAGE_STATE }}
           UBER_ESPERA_MAX_S: '900'
           TZ: America/Guayaquil
