@@ -17,6 +17,8 @@
     "probe-uber-manager": "tsx --env-file=.env.local src/scripts/probe-uber-manager.ts",
     "export-uber-session": "tsx --env-file=.env.local src/scripts/export-uber-session.ts",
     "uber-cloud": "tsx src/scripts/uber-order-history-cloud.ts",
+    "uber-sesion-viva": "tsx src/scripts/uber-sesion-viva.ts",
+    "uber-sesion-viva-local": "tsx --env-file=.env.local src/scripts/uber-sesion-viva.ts",
     "download-uber-reports": "tsx src/scripts/download-uber-reports.ts",
     "import-uber-reports": "tsx --env-file=.env.local src/scripts/import-uber-reports.ts",
     "import-uber-reports-ci": "tsx src/scripts/import-uber-reports.ts",

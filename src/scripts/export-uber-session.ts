@@ -32,8 +32,24 @@ async function main() {
     await page.goto('https://merchants.ubereats.com/manager/reports', {
       waitUntil: 'domcontentloaded', timeout: 60_000,
     });
+    // Si la sesión murió, no abortar: dejar la ventana abierta y esperar a que
+    // Daniel entre AQUÍ. Cerrar y reabrir Chrome no servía porque terminaba
+    // logueándose en su Chrome personal, que es otro perfil y otras cookies.
     if (/\/login|auth\.uber\.com/i.test(page.url())) {
-      throw new Error(`La sesión del perfil ya no sirve: el portal redirigió a ${page.url()}. Hay que volver a loguearse a mano.`);
+      const esperaMin = Number(process.env.UBER_ESPERA_LOGIN_MIN ?? 10);
+      log('uber.session.esperando_login', {
+        mensaje: `Inicia sesión EN ESTA ventana. Espero hasta ${esperaMin} minutos y exporto solo.`,
+        url: page.url(),
+      });
+      const limite = Date.now() + esperaMin * 60_000;
+      while (Date.now() < limite) {
+        await page.waitForTimeout(5000);
+        if (/merchants\.ubereats\.com\/manager/i.test(page.url()) && !/auth\.uber\.com/i.test(page.url())) break;
+      }
+      if (!/merchants\.ubereats\.com\/manager/i.test(page.url())) {
+        throw new Error(`Pasaron ${esperaMin} minutos y la ventana sigue en ${page.url()}. El login no se completó.`);
+      }
+      log('uber.session.login_ok', { url: page.url() });
     }
     await page.waitForTimeout(6000);
     estado = await browser.storageState();

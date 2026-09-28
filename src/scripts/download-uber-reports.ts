@@ -17,6 +17,7 @@ import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { request as pwRequest, type APIRequestContext } from 'playwright';
+import { cargarSesion } from '../lib/uber-session.js';
 
 const OUT = path.resolve(process.cwd(), 'tmp-uber-manager-probe', 'informes');
 const MAX_DIAS_ATRAS = 188;
@@ -65,11 +66,13 @@ const traerJobs = async (api: APIRequestContext): Promise<Job[]> =>
 
 async function main() {
   fs.mkdirSync(OUT, { recursive: true, mode: 0o700 });
-  const secreto = process.env.UBER_STORAGE_STATE;
-  const archivo = path.resolve(process.cwd(), 'uber-storage-state.json');
-  if (!secreto && !fs.existsSync(archivo)) throw new Error('Falta la sesión de Uber');
+  // La sesión sale de la base si hay una guardada (es la más nueva), y si no del
+  // secreto. Ver src/lib/uber-session.ts.
+  const { state, origen } = await cargarSesion();
+  log('uber.informes.sesion_origen', { origen });
   const api = await pwRequest.newContext({
-    storageState: secreto ? JSON.parse(secreto) : archivo,
+    storageState: state as Parameters<typeof pwRequest.newContext>[0] extends infer O
+      ? (O extends { storageState?: infer S } ? S : never) : never,
     extraHTTPHeaders: { 'x-csrf-token': 'x', 'content-type': 'application/json' },
   });
 
