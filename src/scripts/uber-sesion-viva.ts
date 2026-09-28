@@ -28,7 +28,8 @@ import { cargarSesion, guardarSesion, horasDeVida, COOKIE_VITAL, type StorageSta
 const BASE = 'https://merchants.ubereats.com/manager';
 const REZAGO_NORMAL_DIAS = 2;   // Uber publica con dos días de atraso, eso es normal
 const ATRASO_QUE_PREOCUPA = 4;  // a partir de acá ya se perdió al menos una corrida
-const VIDA_MINIMA_HORAS = 6;    // menos que esto y la próxima corrida no llega viva
+const VIDA_MINIMA_HORAS = 48;   // la cookie vital dura 7 días y se renueva cada 6 h:
+                                // si bajó de dos días es que lleva rato sin renovarse
 
 const log = (ev: string, data: Record<string, unknown> = {}) =>
   console.log(JSON.stringify({ ev, ts: new Date().toISOString(), ...data }));
