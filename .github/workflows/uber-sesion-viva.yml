@@ -17,6 +17,15 @@ on:
     # Cada 6 horas: 00:20, 06:20, 12:20 y 18:20 UTC (19:20, 01:20, 07:20 y 13:20 en Ecuador).
     # El :20 evita la hora en punto, que es cuando GitHub tiene más cola y más retrasos.
     - cron: '20 */6 * * *'
+    # Segundo disparo 40 min después de cada uno. MEDIDO el 28-sep-2026: el cron
+    # de las 00:20 UTC no había salido 70 minutos más tarde. GitHub no garantiza
+    # la hora de los programados y con este repo ya pasó antes (por eso la carga
+    # diaria tiene dos disparos desde el 19-sep).
+    #
+    # Doble disparo no duplica trabajo: el guardián solo toca el portal, guarda
+    # la sesión renovada y mide el atraso. Correrlo dos veces seguidas es
+    # inofensivo y barato; no correrlo ninguna vez es lo que duele.
+    - cron: '0 1,7,13,19 * * *'
   workflow_dispatch:
 
 concurrency:
