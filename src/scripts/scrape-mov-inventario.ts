@@ -18,6 +18,7 @@
  *   tsx src/scripts/scrape-mov-inventario.ts                                  # diario: ayer y hoy (hora Ecuador)
  *   tsx src/scripts/scrape-mov-inventario.ts --desde 01/07/2026 --hasta 31/07/2026 --modo backfill
  *   tsx src/scripts/scrape-mov-inventario.ts --desde 03/08/2026 --hasta 14/08/2026 --solo EGR:MAN --dry
+ *   tsx src/scripts/scrape-mov-inventario.ts --pendientes --modo correccion --sin "EGR:"   # vacía la cola de relecturas
  *
  * Salida: exit 0 si todos los slices OK; exit 1 si alguno falló; exit 2 si Contifico bloqueó (403/429/login caído).
  */
@@ -64,7 +65,7 @@ const PAUSE_LIGHT_MS: [number, number] = [2000, 5000];
 const PAUSE_HEAVY_MS: [number, number] = [5000, 10000];
 
 // ─── Args ──────────────────────────────────────────────────────────────────
-interface Args { desde: string; hasta: string; modo: string; solo?: string; sin?: string; dry: boolean; keepFiles: boolean; }
+interface Args { desde: string; hasta: string; modo: string; solo?: string; sin?: string; dry: boolean; keepFiles: boolean; pendientes: boolean; max: number; }
 
 function todayEcuador(): Date {
   const s = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Guayaquil', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
@@ -74,6 +75,7 @@ function todayEcuador(): Date {
 function fmtDMY(d: Date): string { return `${String(d.getUTCDate()).padStart(2, '0')}/${String(d.getUTCMonth() + 1).padStart(2, '0')}/${d.getUTCFullYear()}`; }
 function fmtISO(d: Date): string { return d.toISOString().slice(0, 10); }
 function parseDMY(s: string): Date { const [d, m, y] = s.split('/').map(Number); return new Date(Date.UTC(y, m - 1, d)); }
+function parseISO(s: string): Date { const [y, m, d] = s.slice(0, 10).split('-').map(Number); return new Date(Date.UTC(y, m - 1, d)); }
 function addDays(d: Date, n: number): Date { const r = new Date(d); r.setUTCDate(r.getUTCDate() + n); return r; }
 
 function parseArgs(): Args {
@@ -82,8 +84,13 @@ function parseArgs(): Args {
   const hoy = todayEcuador();
   const desde = get('--desde') ?? fmtDMY(addDays(hoy, -1));
   const hasta = get('--hasta') ?? fmtDMY(hoy);
-  const modo = get('--modo') ?? (get('--desde') ? 'manual' : 'diario');
-  return { desde, hasta, modo, solo: get('--solo'), sin: get('--sin'), dry: a.includes('--dry'), keepFiles: a.includes('--keep-files') };
+  const pendientes = a.includes('--pendientes');
+  const modo = get('--modo') ?? (pendientes ? 'correccion' : get('--desde') ? 'manual' : 'diario');
+  const max = Number(get('--max') ?? 200);
+  return {
+    desde, hasta, modo, solo: get('--solo'), sin: get('--sin'), dry: a.includes('--dry'), keepFiles: a.includes('--keep-files'),
+    pendientes, max: Number.isFinite(max) && max > 0 ? Math.floor(max) : 200,
+  };
 }
 
 // ─── Slices ────────────────────────────────────────────────────────────────
@@ -119,6 +126,40 @@ export function buildSlices(desde: Date, hasta: Date, solo?: string, sin?: strin
 export function exportUrl(s: Slice): string {
   const q = new URLSearchParams({ excel: '2', fecha_inicio: fmtDMY(s.desde), fecha_fin: fmtDMY(s.hasta), tipo: s.tipo, origen: s.origen });
   return `${EXPORT_URL}?${q.toString()}`;
+}
+
+// ─── Relecturas pendientes (cola contifico_web.mov_inventario_relectura) ────
+// --pendientes: en vez de un rango se releen los días que alguien pidió (Contabilidad corrige un
+// movimiento en Contifico y marca "error ya corregido" en Control de Costos). Los días no tienen
+// por qué ser contiguos: cada uno lleva sus propios slices y se cierra en la cola apenas termina
+// el último. Si la corrida muere a la mitad, lo ya releído queda marcado y el resto sigue en cola.
+// Nació el 01-oct-2026: el dispatch por día perdía pedidos (un solo cupo en espera en `concurrency`)
+// y en producción ni siquiera salía (faltaba la llave); 29 días marcados quedaron sin releer.
+export function buildSlicesPendientes(fechasISO: string[], solo?: string, sin?: string): Slice[] {
+  const out: Slice[] = [];
+  for (const iso of fechasISO) { const d = parseISO(iso); out.push(...buildSlices(d, d, solo, sin)); }
+  return out;
+}
+
+export interface EstadoDia { total: number; procesados: number; fallos: number; iniciadoAt: string | null; }
+
+export function nuevoSeguimiento(slices: Slice[]): Map<string, EstadoDia> {
+  const seg = new Map<string, EstadoDia>();
+  for (const s of slices) {
+    const k = fmtISO(s.desde);
+    const e = seg.get(k) ?? { total: 0, procesados: 0, fallos: 0, iniciadoAt: null };
+    e.total++; seg.set(k, e);
+  }
+  return seg;
+}
+
+/** Anota el resultado de un slice. Devuelve el día si con ese slice quedó completo (ok = sin ningún fallo). */
+export function anotarSlice(seg: Map<string, EstadoDia>, s: Slice, exito: boolean): { fecha: string; ok: boolean } | null {
+  const k = fmtISO(s.desde);
+  const e = seg.get(k);
+  if (!e) return null;
+  e.procesados++; if (!exito) e.fallos++;
+  return e.procesados === e.total ? { fecha: k, ok: e.fallos === 0 } : null;
 }
 
 // ─── Login ─────────────────────────────────────────────────────────────────
@@ -241,14 +282,42 @@ async function main() {
   for (const [k, v] of Object.entries({ CONTIFICO_EMAIL, CONTIFICO_PASSWORD, SUPABASE_URL, SUPABASE_KEY })) {
     if (!v) { console.error(`❌ Falta variable de entorno ${k}`); process.exit(1); }
   }
-  const desde = parseDMY(args.desde), hasta = parseDMY(args.hasta);
-  if (!(desde <= hasta)) { console.error('❌ --desde debe ser ≤ --hasta'); process.exit(1); }
   const runId = randomUUID();
-  const slices = buildSlices(desde, hasta, args.solo, args.sin);
   const t0 = Date.now();
+  const supabase: SupabaseClient = createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { persistSession: false } });
+
+  let desde = parseDMY(args.desde), hasta = parseDMY(args.hasta);
+  let slices: Slice[];
+  // Solo en --pendientes: estado de cada día de la cola (ver buildSlicesPendientes).
+  let seguimiento: Map<string, EstadoDia> | null = null;
+  if (args.pendientes) {
+    const { data, error } = await supabase.rpc('fn_web_relectura_pendientes', { p_max: args.max });
+    if (error) { console.error(`❌ no se pudo leer la cola de relecturas: ${error.message}`); process.exit(1); }
+    const fechas = ((data ?? []) as { fecha: string }[]).map((r) => String(r.fecha).slice(0, 10)).sort();
+    if (!fechas.length) {
+      // Latido también cuando no hay nada que releer: "no corrió" y "corrió sin pendientes" no pueden verse igual.
+      const hoy = fmtISO(todayEcuador());
+      if (!args.dry) {
+        const r = await supabase.rpc('fn_web_mov_log', {
+          p_run_id: runId, p_fecha_desde: hoy, p_fecha_hasta: hoy, p_tipo: 'LOG', p_origen: null, p_modo: args.modo,
+          p_ok: true, p_http_status: null, p_bytes: null, p_dur_ms: Date.now() - t0, p_error: null, p_meta: { relectura: 'sin pendientes' },
+        });
+        if (r.error) console.log(`⚠️ no se pudo dejar el latido en sync_log: ${r.error.message}`);
+      }
+      console.log(`■ RESUMEN ${JSON.stringify({ run_id: runId, modo: args.modo, relectura: { dias: 0, ok: 0, fail: 0 }, slices: 0, ok: 0, fail: 0, blocked: false, dur_min: 0 })}`);
+      process.exit(0); // sin abrir navegador ni iniciar sesión
+    }
+    slices = buildSlicesPendientes(fechas, args.solo, args.sin);
+    seguimiento = nuevoSeguimiento(slices);
+    desde = parseISO(fechas[0]); hasta = parseISO(fechas[fechas.length - 1]);
+    args.desde = fmtDMY(desde); args.hasta = fmtDMY(hasta);
+    console.log(`🗂  relecturas pendientes: ${fechas.length} día(s) → ${fechas.join(', ')}`);
+  } else {
+    if (!(desde <= hasta)) { console.error('❌ --desde debe ser ≤ --hasta'); process.exit(1); }
+    slices = buildSlices(desde, hasta, args.solo, args.sin);
+  }
   console.log(`▶ scrape-mov-inventario run=${runId} modo=${args.modo} ${args.desde}→${args.hasta} slices=${slices.length} (pesados=${slices.filter((s) => s.heavy).length}) dry=${args.dry}`);
 
-  const supabase: SupabaseClient = createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { persistSession: false } });
   const tmpDir = path.join(process.cwd(), 'tmp', 'mov-inventario'); if (args.keepFiles) fs.mkdirSync(tmpDir, { recursive: true });
 
   // Fallo antes de bajar nada (navegador o login): dejar evidencia en sync_log y salir con 1. Lección PedidosYa:
@@ -295,8 +364,30 @@ async function main() {
     });
   };
 
+  // Relecturas: al empezar cada slice se asienta el anterior; el día se cierra en la cola con su último slice.
+  let relOk = 0, relFail = 0;
+  let enCurso: { s: Slice; okAntes: number } | null = null;
+  const asentarSlice = async () => {
+    const previo = enCurso; enCurso = null;
+    if (!seguimiento || !previo) return;
+    const fin = anotarSlice(seguimiento, previo.s, ok > previo.okAntes);
+    if (!fin) return;
+    const e = seguimiento.get(fin.fecha)!;
+    if (fin.ok) relOk++; else relFail++;
+    console.log(`  ${fin.ok ? '✅' : '❌'} relectura ${fin.fecha}: ${e.total - e.fallos}/${e.total} slices`);
+    if (args.dry) return;
+    const r = await supabase.rpc('fn_web_relectura_marcar', {
+      p_fecha: fin.fecha, p_ok: fin.ok, p_run_id: runId, p_iniciado_at: e.iniciadoAt,
+      p_error: fin.ok ? null : `${e.fallos} de ${e.total} slices fallaron`,
+    });
+    if (r.error) console.log(`  ⚠️ no se pudo marcar la relectura ${fin.fecha}: ${r.error.message}`);
+  };
+
   for (let i = 0; i < slices.length && !blocked; i++) {
+    await asentarSlice();
     const s = slices[i];
+    if (seguimiento) { const e = seguimiento.get(fmtISO(s.desde)); if (e && !e.iniciadoAt) e.iniciadoAt = new Date().toISOString(); }
+    enCurso = { s, okAntes: ok };
     const url = exportUrl(s);
     const label = `[${i + 1}/${slices.length}] ${s.tipo}:${s.origen || 'TODOS'} ${fmtDMY(s.desde)}→${fmtDMY(s.hasta)}`;
     const ts = Date.now();
@@ -363,8 +454,26 @@ async function main() {
     await sleep(rand(s.heavy ? PAUSE_HEAVY_MS : PAUSE_LIGHT_MS));
   }
 
+  await asentarSlice();
+  // Un día que quedó a medias (Contifico bloqueó o la sesión cayó) no se cierra: cuenta el intento y sigue en cola.
+  if (seguimiento && !args.dry) {
+    for (const [fecha, e] of seguimiento) {
+      if (e.procesados === 0 || e.procesados === e.total) continue;
+      relFail++;
+      const r = await supabase.rpc('fn_web_relectura_marcar', {
+        p_fecha: fecha, p_ok: false, p_run_id: runId, p_iniciado_at: e.iniciadoAt,
+        p_error: `interrumpida: ${e.procesados} de ${e.total} slices (bloqueo o corte)`,
+      });
+      if (r.error) console.log(`  ⚠️ no se pudo marcar la relectura ${fecha}: ${r.error.message}`);
+    }
+  }
+
   await browser.close();
-  const summary = { run_id: runId, modo: args.modo, desde: args.desde, hasta: args.hasta, slices: slices.length, ok, fail, blocked, filas: filasTotal, docs: docsTotal, dur_min: Math.round((Date.now() - t0) / 60000) };
+  const summary = {
+    run_id: runId, modo: args.modo, desde: args.desde, hasta: args.hasta, slices: slices.length, ok, fail, blocked, filas: filasTotal, docs: docsTotal,
+    ...(seguimiento ? { relectura: { dias: seguimiento.size, ok: relOk, fail: relFail } } : {}),
+    dur_min: Math.round((Date.now() - t0) / 60000),
+  };
   console.log(`■ RESUMEN ${JSON.stringify(summary)}`);
   process.exit(blocked ? 2 : fail > 0 ? 1 : 0);
 }
