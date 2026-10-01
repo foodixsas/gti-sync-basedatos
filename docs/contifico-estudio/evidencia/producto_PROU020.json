@@ -1,0 +1,88 @@
+{
+ "campos": {
+  "id": "16092658",
+  "estado": "A=Activo",
+  "codigo": "PROU020",
+  "categoria_id": "655373",
+  "nombre": "UBER Combo para 2 - $9,99 Combo New York + 4 Alitas",
+  "tipo": "PRO=Producto",
+  "tipo_producto": "COP=Compuesto",
+  "unidad_id": "331140",
+  "gasto_personal": "NAP=No aplica",
+  "pvp1": "8.686957",
+  "pvp2": "15.086957",
+  "iva": "15=IVA 15%",
+  "tipo_ice": "NAP=No aplica",
+  "para_venta": "on",
+  "cuenta_venta_id": "10807004",
+  "minimo": "0.00",
+  "para_pos": "on",
+  "pos_input": "8732,8822,8917,8918",
+  "costo_maximo": "0",
+  "dias_plazo": "0"
+ },
+ "grupos": {
+  "0": {
+   "detalles": {
+    "0": {
+     "producto_detalle_id": "16081994",
+     "cantidad": "1.00",
+     "hidden_unidad": "Unidad",
+     "texto": ""
+    },
+    "1": {
+     "producto_detalle_id": "10460084",
+     "cantidad": "1.00",
+     "hidden_unidad": "Unidad",
+     "texto": ""
+    },
+    "2": {
+     "producto_detalle_id": "10460245",
+     "cantidad": "27.00",
+     "hidden_unidad": "Gramos",
+     "texto": ""
+    },
+    "3": {
+     "producto_detalle_id": "10460179",
+     "cantidad": "1.00",
+     "hidden_unidad": "Unidad",
+     "texto": ""
+    },
+    "4": {
+     "producto_detalle_id": "10460131",
+     "cantidad": "2.00",
+     "hidden_unidad": "Unidad",
+     "texto": ""
+    },
+    "5": {
+     "producto_detalle_id": "10460244",
+     "cantidad": "57.00",
+     "hidden_unidad": "Gramos",
+     "texto": ""
+    },
+    "6": {
+     "producto_detalle_id": "10460259",
+     "cantidad": "1.00",
+     "hidden_unidad": "Unidad",
+     "texto": ""
+    },
+    "7": {
+     "producto_detalle_id": "10460024",
+     "cantidad": "1.00",
+     "hidden_unidad": "Unidad",
+     "texto": ""
+    },
+    "8": {
+     "producto_detalle_id": "10460001",
+     "cantidad": "0.50",
+     "hidden_unidad": "Unidad",
+     "texto": ""
+    }
+   },
+   "nombre": "FORMULA",
+   "seleccion": "NE=No Elegible"
+  }
+ },
+ "formula_pro": {},
+ "combo": {}
+}

@@ -1,0 +1,175 @@
+# POS registrados (pos/consultar_pos/, 22-sep-2026)
+-          | Establecimiento | Emisión | Bodega Asociada | Direccion Pos
+8731       | 003 | 002 | BODEGA CHIOS FLOREANA | Caja 2, Isla floreana e isla Isabela
+8732       | 003 | 001 | BODEGA CHIOS FLOREANA | CHIOS - Isla floreana - isla Isabela
+8822       | 002 | 001 | BODEGA CHIOS REAL | CHIOS - Real Audiencia y José María Borrero
+8917       | 004 | 001 | BODEGA CHIOS PORTUGAL | CHIOS - Av Portugal y República del salvador
+8918       | 004 | 002 | BODEGA CHIOS PORTUGAL | Adicional, Av Portugal y República del salvad
+12777      | 004 | 003 | BODEGA PRINCIPAL | API PRODUCCION
+12923      | 002 | 002 | BODEGA CHIOS REAL | CHIOS - Adicional, Real Audiencia y José Marí
+12974      | 005 | 002 | BODEGA SIMON BOLON | Av. Real Audiencia N2-204 y Alfonso Yepez
+13162      | 005 | 001 | BODEGA PRINCIPAL | Liquidación de tarjetas de crédito
+13217      | 999 | 999 | BODEGA PRINCIPAL | Integracion Alianza Pronto
+13400      | 006 | 001 | BODEGA SANTO CACHON REAL | COFAVI / REAL AUDIENCIA N58-94 Intersección: 
+13473      | 007 | 001 | BODEGA SANTO CACHON PORTUGAL | N35 PORTUGAL E9-116 N34 REPUBLICA DE EL SALVA
+filas: 26
+
+# Bodegas (inventario/bodega/)
+-          | Filtro: | 
+-          | Código | Nombre | Centro de Costo | Acciones
+59587      | BOD001 | BODEGA PRINCIPAL Activo | BODEGA PRINCIPAL | 
+59588      | BOD003 | BODEGA CHIOS FLOREANA Activo | CHIOS FLOREANA | 
+64721      | BOD002 | BODEGA CHIOS REAL Activo | CHIOS REAL AUDIENCIA | 
+64722      | BOD004 | BODEGA CHIOS PORTUGAL Activo | CHIOS PORTUGAL | 
+68986      | BOD005 | BODEGA PLANTA DE PRODUCCION Activo | PLANTA DE PRODUCCION | 
+77602      | BOD006 | BODEGA CALIDAD Activo | BODEGA CALIDAD | 
+87904      | BOD007 | BODEGA SIMON BOLON Activo | SIMON BOLON REAL AUDIENCIA | 
+88730      | BOD008 | BODEGA PULMON Activo | BODEGA SECUNDARIA | 
+88928      | BOD009 | BODEGA SANTO CACHON REAL Activo | SANTO CACHON REAL AUDIENCIA | 
+88984      | BOD0010 | BODEGA MATERIA PRIMA Activo | BODEGA MATERIA PRIMA | 
+89194      | BOD011 | BODEGA SANTO CACHON PORTUGAL Activo | SANTO CACHON PORTUGAL | 
+89695      | BOD012 | BODEGA SIMON BOLON FLOREANA Activo | SIMON BOLON FLOREANA | 
+filas: 27
+
+# Unidades
+-          | Nombre | Abreviatura | Acciones
+393519     | Bidon | Bid. | 
+385114     | Bloque | Bloq. | 
+382443     | Botella | Bot. | 
+384973     | Bulto | Bult. | 
+370728     | Caja | Caj. | 
+331127     | Centimetros Cúbicos | cc. | 
+331128     | Centimetros | cm. | 
+478902     | Cubeta | Cub | 
+384937     | Funda | Fun. | 
+331129     | Gramos | g. | 
+331130     | Galones | gl. | 
+331131     | Kilogramos | Kg. | 
+331132     | Litros | l. | 
+331133     | Libras | Lb. | 
+331134     | Metros | m. | 
+331135     | Millar | Mil. | 
+478930     | Minutos | Min | 
+331136     | Mililitros | ml. | 
+331137     | Milimetros | mm. | 
+331138     | Onzas | oz. | 
+370709     | Paquete | Paq. | 
+331139     | Pulgadas | plg. | 
+370710     | Porcion | Por. | 
+424865     | Rollo | Rol. | 
+384974     | Sobre | Sobr. | 
+filas: 39
+
+# Cuentas bancarias (números de cuenta redactados)
+-          | Cuenta Bancaria | Número | Tipo | Ciudad | Cuenta Contable | Banco | Acciones
+30463      | BANCO PRODUBANCO CC <nro> Activa | <nro> | Corriente | Quito | Banco Produbanco CC <nro> | BANCO PRODUBANCO | 
+30925      | BANCO PICHINCHA CC <nro> Activa | <nro> | Corriente | Quito | Banco Pichincha CC <nro> | BANCO PICHINCHA | 
+31178      | BANCO PRODUBANCO CC DANIEL CHAMORRO Inactiva | <nro> | Corriente | Quito | Banco Produbanco CC <nro> Daniel Chamor | BANCO PRODUBANCO | 
+39526      | BANCO GUAYAQUIL CC <nro> Inactiva | <nro> | Corriente | Quito | Banco Guayaquil CC <nro> | BANCO GUAYAQUIL | 
+42162      | BANCO DEUNA Activa | 1 | Corriente | Quito | Banco DEUNA | BANCO PICHINCHA | 
+42843      | Banco Produbanco Activa | Ahorro Programado | Ahorro | Quito | Banco Produbanco Ahorro Programado | BANCO PRODUBANCO | 
+43184      | Banco JUSTO Activa | 2 | Corriente | Quito | Banco JUSTO | BANCO PRODUBANCO | 
+43424      | Banco Internacional Activa | <nro> | Corriente | Quito | Banco Internacional CC <nro> | BANCO INTERNACIONAL | 
+43503      | Banco Bolivariano CC <nro> Activa | <nro> | Corriente | Quito | Banco Bolivariano CC <nro> | BANCO BOLIVARIANO | 
+filas: 23
+
+# Comercios TC (tarjeta_credito/comercio/)
+-          | Código | Red | Descripción | 
+19570      | 002 | DataExpress Inactivo | Cuenta por Cobrar (Tarjetas de Crédito) DataE | 
+20072      | 005 | DataExpress Inactivo | Cuenta por Cobrar (Tarjetas de Crédito) DataE | 
+19564      | 002 | Datafast Inactivo | Cuenta por Cobrar (Tarjetas de Crédito) Dataf | 
+20070      | 005 | Datafast Inactivo | Cuenta por Cobrar (Tarjetas de Crédito) Dataf | 
+19568      | 002 | Medianet Inactivo | Cuenta por Cobrar (Tarjetas de Crédito) Media | 
+20071      | 005 | Medianet Inactivo | Cuenta por Cobrar (Tarjetas de Crédito) Media | 
+32117      | 009 | DataExpress Activo | DataExpress - Simon Bolon | 
+32122      | 010 | DataExpress Activo | DataExpress APP UNO | 
+32123      | 011 | DataExpress Activo | DataExpress POS | 
+33424      | PORT | DataExpress Activo | DataExpress POS Portugal | 
+31405      | 008 | DataExpress Activo | DataExpress POS Viche Pez | 
+19571      | 001 | DataExpress Activo | DataExpress Punto de venta Floreana 003-001 | 
+19573      | 004 | DataExpress Activo | DataExpress Punto de venta Portugal 004-001 | 
+19572      | 003 | DataExpress Activo | DataExpress Punto de venta Real Audiencia 002 | 
+31135      | 007 | DataExpress Activo | DataExpress Punto de venta Real Audiencia 002 | 
+33054      | 006-001 | DataExpress Activo | DataExpress Punto de Venta Santo Cachon 006-0 | 
+33441      | 007-001 | DataExpress Activo | DataExpress Punto de Venta Santo Cachon Portu | 
+32084      | 009 | Datafast Activo | Datafast - Simon Bolon | 
+30537      | 006 | Datafast Activo | DATAFAST API | 
+32118      | 010 | Datafast Activo | Datafast APP UNO | 
+32119      | 011 | Datafast Activo | Datafast POS | 
+33422      | PORT | Datafast Activo | Datafast POS Portugal | 
+31403      | 008 | Datafast Activo | Datafast POS Viche Pez | 
+32257      | 033 | Datafast Activo | Datafast Pronto | 
+19563      | 001 | Datafast Activo | Datafast Punto de venta Floreana 003-001 | 
+19566      | 004 | Datafast Activo | Datafast Punto de venta Portugal 004-001 | 
+19565      | 003 | Datafast Activo | Datafast Punto de venta Real Audiencia 002-00 | 
+31133      | 007 | Datafast Activo | Datafast Punto de venta Real Audiencia 002-00 | 
+33052      | 006-001 | Datafast Activo | Datafast Punto de Venta Santo Cachon 006-001 | 
+33443      | 007-001 | Datafast Activo | Datafast Punto de Venta Santo Cachon Portugal | 
+32085      | 009 | Medianet Activo | Medianet - Simon Bolon | 
+30538      | 006 | Medianet Activo | MEDIANET API | 
+32120      | 010 | Medianet Activo | Medianet APP UNO | 
+32121      | 011 | Medianet Activo | Medianet POS | 
+33423      | PORT | Medianet Activo | Medianet POS Portugal | 
+31404      | 008 | Medianet Activo | Medianet POS Viche Pez | 
+32258      | 034 | Medianet Activo | Medianet Pronto | 
+19567      | 001 | Medianet Activo | Medianet Punto de venta Floreana 003-001 | 
+19832      | 004 | Medianet Activo | Medianet Punto de venta Portugal 004-001 | 
+19569      | 003 | Medianet Activo | Medianet Punto de venta Real Audiencia 002-00 | 
+31134      | 007 | Medianet Activo | Medianet Punto de venta Real Audiencia 002-00 | 
+33053      | 006-001 | Medianet Activo | Medianet Punto de Venta Santo Cachon 006-001 | 
+33442      | 007-001 | Medianet Activo | Medianet Punto de Venta Santo Cachon Portugal | 
+filas: 57
+
+# Lotes TC (muestra 22-sep-2026)
+-          | RECAP | POS | Red | Fecha | No. Vales | Total Cobrado | Total Liquidado | Diferencia | Estado | Acciones
+17059724   | 0552 | Datafast - Simon Bolon | Datafast | 22/09/2026 - 22/09/2026 | 9 | $ 121.02 | $ 0 | $ 121.02 | Pendiente (Faltante) | 
+17058707   | 0453 | Medianet Punto de Venta Santo Cachon 006-001 | Medianet | 21/09/2026 - 21/09/2026 | 18 | $ 514.52 | $ 0 | $ 514.52 | Pendiente (Faltante) | 
+17058659   | 0093 | Medianet Punto de Venta Santo Cachon Portugal | Medianet | 21/09/2026 - 21/09/2026 | 26 | $ 698.75 | $ 0 | $ 698.75 | Pendiente (Faltante) | 
+17058651   | 0188 | Medianet Punto de venta Portugal 004-001 | Medianet | 21/09/2026 - 21/09/2026 | 39 | $ 562.17 | $ 0 | $ 562.17 | Pendiente (Faltante) | 
+17058650   | 0324 | Medianet Punto de venta Floreana 003-001 | Medianet | 21/09/2026 - 21/09/2026 | 17 | $ 300.31 | $ 0 | $ 300.31 | Pendiente (Faltante) | 
+17058642   | 0206 | Medianet Punto de venta Real Audiencia 002-00 | Medianet | 21/09/2026 - 21/09/2026 | 18 | $ 315.84 | $ 0 | $ 315.84 | Pendiente (Faltante) | 
+17057828   | 0784 | Medianet - Simon Bolon | Medianet | 21/09/2026 - 21/09/2026 | 8 | $ 141.41 | $ 0 | $ 141.41 | Pendiente (Faltante) | 
+17057656   | 0919 | Medianet Punto de Venta Santo Cachon Portugal | Medianet | 20/09/2026 - 20/09/2026 | 33 | $ 912.64 | $ 0 | $ 912.64 | Pendiente (Faltante) | 
+17057655   | 0247 | Datafast Punto de Venta Santo Cachon Portugal | Datafast | 20/09/2026 - 20/09/2026 | 11 | $ 389.77 | $ 0 | $ 389.77 | Pendiente (Faltante) | 
+17057025   | 0452 | Medianet Punto de Venta Santo Cachon 006-001 | Medianet | 20/09/2026 - 20/09/2026 | 26 | $ 850.46 | $ 0 | $ 850.46 | Pendiente (Faltante) | 
+17057003   | 0187 | Medianet Punto de venta Portugal 004-001 | Medianet | 20/09/2026 - 20/09/2026 | 58 | $ 1089.33 | $ 0 | $ 1089.33 | Pendiente (Faltante) | 
+17056995   | 0205 | Medianet Punto de venta Real Audiencia 002-00 | Medianet | 20/09/2026 - 20/09/2026 | 49 | $ 1169.44 | $ 0 | $ 1169.44 | Pendiente (Faltante) | 
+17056994   | 0323 | Medianet Punto de venta Floreana 003-001 | Medianet | 20/09/2026 - 20/09/2026 | 24 | $ 520.78 | $ 0 | $ 520.78 | Pendiente (Faltante) | 
+17056571   | 0551 | Datafast - Simon Bolon | Datafast | 20/09/2026 - 20/09/2026 | 60 | $ 1188.47 | $ 0 | $ 1188.47 | Pendiente (Faltante) | 
+17055676   | 0186 | Medianet Punto de venta Portugal 004-001 | Medianet | 19/09/2026 - 19/09/2026 | 55 | $ 964.30 | $ 0 | $ 964.30 | Pendiente (Faltante) | 
+17055669   | 0204 | Medianet Punto de venta Real Audiencia 002-00 | Medianet | 19/09/2026 - 19/09/2026 | 48 | $ 977.87 | $ 0 | $ 977.87 | Pendiente (Faltante) | 
+17055665   | 0451 | Medianet Punto de Venta Santo Cachon 006-001 | Medianet | 19/09/2026 - 19/09/2026 | 37 | $ 1472.54 | $ 0 | $ 1472.54 | Pendiente (Faltante) | 
+17055663   | 0322 | Medianet Punto de venta Floreana 003-001 | Medianet | 19/09/2026 - 19/09/2026 | 25 | $ 460.08 | $ 0 | $ 460.08 | Pendiente (Faltante) | 
+17055661   | 0091 | Medianet Punto de Venta Santo Cachon Portugal | Medianet | 19/09/2026 - 19/09/2026 | 3 | $ 73.39 | $ 0 | $ 73.39 | Pendiente (Faltante) | 
+17055660   | 0246 | Datafast Punto de Venta Santo Cachon Portugal | Datafast | 19/09/2026 - 19/09/2026 | 35 | $ 1048.00 | $ 0 | $ 1048.00 | Pendiente (Faltante) | 
+filas: 39
+
+# Categorías y ubicaciones de activos fijos
+-          | Nombre | Tipo | % Dep. anual | Acciones
+4413       | EQUIPOS DE COMPUTACIÓN | Costos | 20% | 
+4093       | MAQUINARIAS Y EQUIPO FLOREANA | Costos | 10% | 
+4357       | MAQUINARIAS Y EQUIPO PLANTA | Costos | 20% | 
+4092       | MAQUINARIAS Y EQUIPO PORTUGAL | Costos | 10% | 
+4089       | MAQUINARIAS Y EQUIPOS REAL AUDIENCIA | Costos | 10% | 
+4163       | VEHICULO PLANTA | Gastos Administrativos | 20% | 
+-          | &nbsp; | Tipos de Activo
+-          |  | EQUIPOS DE COMPUTACIÓN | 
+-          |  | COMPUTACION
+-          |  | MAQUINARIAS Y EQUIPO FLOREANA | 
+-          |  | MAQUINARIA
+-          |  | MAQUINARIAS Y EQUIPO PLANTA | 
+-          |  | MAQUINARIA
+-          |  | MAQUINARIAS Y EQUIPO PORTUGAL | 
+-          |  | MAQUINARIA
+-          |  | MAQUINARIAS Y EQUIPOS REAL AUDIENCIA | 
+-          |  | MAQUINARIA
+-          |  | VEHICULO PLANTA | 
+-          |  | VEHICULOS
+-          | Codigo | Nombre | Acciones
+3712       | L.REAL | LOCAL REAL AUDIENCIA | 
+3716       | L.PORT | LOCAL BODEGA PORTUGAL | 
+3719       | L.FLOR | LOCAL FLOREANA | 
+3720       | B.PRIN | BODEGA PRINCIPAL | 
+3721       | P.PROD | PLANTA DE PRODUCCIÓN | 
+3722       | OFI | OFICINA | 
+filas: 40

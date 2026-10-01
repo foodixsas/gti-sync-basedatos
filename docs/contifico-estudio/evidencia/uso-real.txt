@@ -1,0 +1,110 @@
+=== docs_por_tipo
+ tipo_documento | tipo_registro |   n    | anio_min | anio_max 
+----------------+---------------+--------+----------+----------
+ FAC            | CLI           | 722036 | 2021     | 2026
+ FAC            | PRO           |  32571 | 2021     | 2026
+ DNA            | CLI           |  23329 | 2021     | 2026
+ DAC            | PRO           |   1559 | 2021     | 2026
+ DNA            | PRO           |   1097 | 2021     | 2026
+ NCT            | PRO           |   1089 | 2021     | 2026
+ LQR            | PRO           |   1045 | 2021     | 2026
+ NVE            | PRO           |   1010 | 2021     | 2026
+ LQC            | PRO           |    510 | 2022     | 2025
+ NCT            | CLI           |    355 | 2021     | 2026
+ DAC            | CLI           |     32 | 2021     | 2026
+ PEA            | PRO           |     10 | 2022     | 2024
+ OCV            | PRO           |      4 | 2021     | 2026
+ NDT            | PRO           |      1 | 2026     | 2026
+ NDT            | CLI           |      1 | 2024     | 2024
+ PRE            | CLI           |      1 | 2022     | 2022
+(16 rows)
+
+Time: 125054.301 ms (02:05.054)
+=== docs_2026_por_mes
+psql:/private/tmp/claude-501/-Users-danielchamorrogonzalez/c637c922-fce6-4d6e-906f-fcd2a3ce6323/scratchpad/uso-real.sql:6: ERROR:  argument of FILTER must be type boolean, not type text
+LINE 1: ... (where anulado) anulados, count(*) filter (where pos) pos f...
+                                                             ^
+Time: 253.919 ms
+=== mov_inventario
+ tipo |   n    |   desde    |   hasta    
+------+--------+------------+------------
+ AJU  |    402 | 2021-11-01 | 2026-09-14
+ EGR  | 769805 | 2021-10-31 | 2026-09-22
+ ING  |  36905 | 2021-10-31 | 2026-09-22
+ TRA  |  17023 | 2021-11-02 | 2026-09-22
+(4 rows)
+
+Time: 51335.258 ms (00:51.335)
+=== asientos_por_anio
+ anio |   n    
+------+--------
+ 2021 |  63574
+ 2022 | 360609
+ 2023 | 405082
+ 2024 | 486193
+ 2025 | 612827
+ 2026 | 522760
+ 2027 |      1
+(7 rows)
+
+Time: 112924.475 ms (01:52.924)
+=== bancos
+   n   |     f1     |     f2     
+-------+------------+------------
+ 18311 | 01/01/2022 | 31/12/2025
+(1 row)
+
+Time: 374.173 ms
+=== guias
+ n 
+---
+ 3
+(1 row)
+
+Time: 260.196 ms
+=== personas_flags
+ es_cliente | es_proveedor | es_empleado | es_vendedor |   n    
+------------+--------------+-------------+-------------+--------
+ t          | f            | f           | f           | 158006
+ f          | t            | f           | f           |   1554
+ t          | t            | f           | f           |    457
+ t          | f            | t           | f           |     72
+ t          | f            | t           | t           |     12
+ t          | t            | t           | f           |     11
+ t          | f            | f           | t           |     11
+ f          | f            | t           | f           |      9
+ t          | t            | f           | t           |      3
+ f          | t            | f           | t           |      1
+ f          | f            | f           | t           |      1
+(11 rows)
+
+Time: 1373.773 ms (00:01.374)
+=== productos
+ tipo | tipo_producto | estado |  n  
+------+---------------+--------+-----
+ PRO  | SIM           | A      | 395
+ PRO  | COP           | A      | 365
+ PRO  | COP           | I      | 246
+ PRO  | SIM           | I      | 166
+ PRO  | PRO           | A      | 128
+ PRO  | PRO           | I      |  39
+ SER  | SIM           | A      |  10
+ SER  | COP           | A      |   1
+(8 rows)
+
+Time: 371.392 ms
+=== catalogos
+       k        |  n   
+----------------+------
+ cuentas        | 1104
+ centros_costo  |   28
+ bodegas        |   12
+ categorias     |   92
+ bancos_cuentas |    9
+ unidades       |   30
+ marcas         |  114
+ variantes      |    0
+(8 rows)
+
+Time: 671.437 ms
+FIN psql exit=0

@@ -1,0 +1,62 @@
+=== tipos_columnas
+  column_name   |     data_type     
+----------------+-------------------
+ pos            | text
+ estado         | character varying
+ anulado        | boolean
+ electronico    | boolean
+ firmado        | boolean
+ tipo_descuento | character varying
+ autorizado_sri | boolean
+ enviado_sri    | boolean
+(8 rows)
+
+=== docs_2026_por_mes
+   mes   | tipo_registro |   n   | electronicos | anulados | pos | puntos 
+---------+---------------+-------+--------------+----------+-----+--------
+ 01/2026 | CLI           | 16125 |        15871 |       56 |   0 |    262
+ 01/2026 | PRO           |   796 |           17 |        0 |   0 |    101
+ 02/2026 | CLI           | 14116 |        13879 |       59 |   0 |    245
+ 02/2026 | PRO           |   680 |           27 |        0 |   0 |     78
+ 03/2026 | CLI           | 15086 |        14798 |       65 |   0 |    297
+ 03/2026 | PRO           |   798 |           26 |        2 |   0 |    119
+ 04/2026 | CLI           | 15669 |        15459 |       53 |   0 |    219
+ 04/2026 | PRO           |   769 |           23 |        0 |   0 |     81
+ 05/2026 | CLI           | 17070 |        16829 |       64 |   0 |    250
+ 05/2026 | PRO           |   781 |           28 |        2 |   0 |     86
+ 06/2026 | CLI           | 14862 |        14622 |       81 |   0 |    249
+ 06/2026 | PRO           |   814 |           22 |        0 |   0 |     88
+ 07/2026 | CLI           | 16008 |        15755 |       71 |   0 |    257
+ 07/2026 | PRO           |   910 |           28 |        1 |   0 |     87
+ 08/2026 | CLI           | 18396 |        18215 |      105 |   0 |    161
+ 08/2026 | PRO           |   808 |           20 |        0 |   0 |     81
+ 09/2026 | CLI           | 13069 |        12900 |       58 |   0 |    156
+ 09/2026 | PRO           |   517 |           15 |        1 |   0 |     55
+(18 rows)
+
+=== estados_docs
+ tipo_registro | estado |   n    
+---------------+--------+--------
+ CLI           | C      | 740687
+ CLI           | A      |   3720
+ CLI           | P      |   1018
+ CLI           | G      |    333
+ CLI           | F      |      1
+ PRO           | G      |  33188
+ PRO           | P      |   4564
+ PRO           | C      |   1079
+ PRO           | A      |     61
+ PRO           | R      |      3
+ PRO           | Z      |      1
+(11 rows)
+
+=== cobros_formas_2026
+ forma  |   n   |  monto  
+--------+-------+---------
+ TC     | 58310 | 1266389
+ TRANSF | 21125 |  398964
+ CAJA   | 17449 |  278687
+        |    28 |     885
+(4 rows)
+
+FIN exit=0

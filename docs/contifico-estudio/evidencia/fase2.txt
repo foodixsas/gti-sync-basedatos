@@ -1,0 +1,129 @@
+=== cols_clean_asientos
+   column_name   |     data_type     
+-----------------+-------------------
+ id              | bigint
+ asiento_id      | character varying
+ fecha           | date
+ glosa           | text
+ linea           | smallint
+ tipo            | character
+ valor           | numeric
+ cuenta_id       | character varying
+ cuenta_codigo   | character varying
+ centro_costo_id | character varying
+ anio            | smallint
+ mes             | smallint
+(12 rows)
+
+Time: 17087.136 ms (00:17.087)
+=== asientos_raw_dia_15sep_patrones
+                            patron                            |  n  | lineas_prom 
+--------------------------------------------------------------+-----+-------------
+ VENTA PUNTO DE VENTA                                         | 764 |         3.6
+ Asiento de descarga de inventario - EGR #                    | 513 |        17.6
+ CRUCE DE CUENTA PEDIDO UBER                                  | 195 |         2.0
+ PAGO MASIVO A PROVEEDORES                                    |  44 |         2.0
+ Asiento de traslado de inventario - TRA #                    |  27 |        15.9
+ CRUCE DE CUENTA PEDIDO PEDIDOSYA                             |  25 |         2.0
+ CRUCE DE CUENTA PEDIDO RAPPI                                 |  16 |         2.0
+ Doc. #-#-#,   VENTA PUNTO DE VENTA                           |  12 |         2.0
+ Retención de Liquidación de tarjeta de crédito ##            |  11 |         6.5
+ Depósito de Liquidación de tarjeta de crédito ##             |   9 |         4.1
+ -Tasa de servicio/Plataforma Uber #/#/# - #/#/#\r           +|   8 |         4.0
+ -Comisión p                                                  |     | 
+ Asiento de Retencion Doc N. #-#-#                            |   6 |         2.3
+ #                                                            |   6 |         3.0
+ Retención de Liquidación de tarjeta de crédito ##-#-#        |   5 |         8.0
+ Asiento de descarga de inventario - ING #                    |   5 |         3.4
+ CIERRE DE EFECTIVO SANTO CACHON REAL AUDIENCIA \r           +|   5 |         2.0
+ FECHA #_#_#                                                  |     | 
+ HAYDEE C. contabilidadaux@chiosburger.com QUITO #            |   4 |        13.5
+ #/#/# NAC-GCFOIOC#-#-E                                       |   4 |         3.3
+ CIERRE DE EFECTIVO CHIOS FLOREANA \r                        +|   4 |         2.0
+ FECHA #_#_#\r                                               +|     | 
+ PAJUÑA \r                                                   +|     | 
+ DI                                                           |     | 
+ #-#-#_BEBIDAS ARCACONTINENTAL ECUADOR ARCADOR C.L.           |   4 |         6.5
+ FOODIX S.A.S. - ENTREGA AKL MIERCOLES # # # #                |   3 |         3.0
+ Doc. #-#-#,   #-#-#_TESALIA                                  |   3 |         2.0
+ -ESTUDIO DE MERCADO                                          |   3 |         3.0
+ N/E # - DIAS CREDITO: # #                                    |   3 |         2.0
+ logistica@chiosburger.com;logistica@chiosburger.com # logist |   3 |         8.0
+ Resolución NAC-GCFOIOC#-#-E # - CHIOS BURGUER PABON NUBIA AV |   3 |         4.0
+ FOODIX S.A.S. , ID #, Celular #, ClienteSAP # Latitud -#.#,  |   3 |         6.0
+ PICHINCHA / QUITO / QUITO DISTRITO METROPOLITANO / SABANILLA |   3 |         4.0
+ SUCURSAL REAL AUDIENCIA #                                    |   3 |         3.0
+ SUCURSAL REPUBLICA DEL SALVADOR #                            |   3 |         3.0
+ Doc. #-#-#,   #-#-#_BEBIDAS ARCACONTINENTAL ECUADOR ARCADOR  |   2 |         2.0
+ # PREDO GUERRERO E# - # Y DE LAS ANONAS administracion@chios |   2 |         3.0
+ #-#-#-chios real-RONALS PAPA S.A.S.                          |   2 |         2.0
+ RONALS PAPA S.A.S. - #-#-#                                   |   2 |         2.0
+ Doc. #-#-#,   - MOV VTAS TRANSPORTE DE EMPLEADOS, TRANSPORTE |   2 |         2.0
+ JACKY contabilidadaux@chiosburger.com QUITO #                |   2 |         3.0
+ # contabilidadaux@chiosburger.com #                          |   2 |        24.0
+ PRO # PT - SEMANA # - MARTES - ALI# - ALIÑO ESTOFADO CAMARON |   2 |         9.5
+ - MOV ADM TRANSPORTE LIER DE MARKETING\r                    +|   2 |         8.0
+ - MOV VTAS TRANSPORT                                         |     | 
+ ANTICIPO ARRIENDO SANTO CACHON REAL                          |   2 |         2.0
+(40 rows)
+
+Time: 74030.457 ms (01:14.030)
+=== asientos_raw_dia_15sep_total
+ asientos | lineas 
+----------+--------
+     1756 |  13489
+(1 row)
+
+Time: 213.896 ms
+=== facturas_cli_15sep
+   pto   |  n  |  total  
+---------+-----+---------
+ 002-001 | 136 | 1734.67
+ 003-001 |  69 |  854.72
+ 004-002 | 158 | 2052.24
+ 005-002 |  41 |  520.19
+ 006-001 |  53 | 1294.44
+ 007-001 |  66 | 1070.90
+(6 rows)
+
+Time: 4628.718 ms (00:04.629)
+=== asiento_venta_muestra
+        id        |                        glosa                         | n  |                                                                                                                                det                                                                                                                                
+------------------+------------------------------------------------------+----+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ wKe5QY5pmNhw3Le3 | VENTA PUNTO DE VENTA                                 |  2 | JvaMjPXVwIvD4bpz H 11.90 ; JvaMjkRXMuvD4bpz D 11.90
+ Ejb2xV5mj0I0WzeV | Asiento de descarga de inventario - EGR 202609142684 | 10 | O8bY6zzWrfjm2d7j H 0.31 ; XKdwmVnNGCgk3agW H 0.21 ; Gge0gwwYrtYQwdAD H 0.23 ; RBe3l7LE5tWozaLJ H 0.33 ; 9jaKZ1AoOhZP5ek5 H 1.60 ; MEeg5vm8vH4KZbQ5 D 0.31 ; LmavgOGLZUrqzb3N D 0.21 ; mBdJZL3W1tglEd0J D 0.23 ; 01dNxP3WRHwJmaX7 D 0.33 ; pZeVPAJDJszmobGW D 1.60
+ KVeZYjJBkMfXA9d8 | VENTA PUNTO DE VENTA                                 |  4 | JvaMjPXVwIvD4bpz D 11.90 ; 01dNxgGgGtwJmaX7 H 1.55 ; YWb48AA6wTREKbZ1 H 7.78 ; Ejb2Ryy8mc0WzbVN H 2.57
+(3 rows)
+
+Time: 255.467 ms
+=== egr_venta_15sep_por_bodega
+    bodega_id     | n_egr | lineas |                                     desc1                                      
+------------------+-------+--------+--------------------------------------------------------------------------------
+ OjZdyE51cAK5dJ4m |   160 |   1374 | Egreso por Toma de Inventario - TFI 202609002129
+ QEMaxD5QSPDoa5GB |   138 |   1297 | Egreso por Toma de Inventario - TFI 202609002125
+ GEjb2ZVOF0WzbVNW |    69 |    638 | VENTA PUNTO DE VENTA
+ 4pzb82q6MhBWpeEw |    68 |    541 | Egreso por Toma de Inventario - TFI 202609002127
+ 91qdG66Gvh2E5bN8 |    55 |    524 | Egreso por Toma de Inventario - TFI 202609002168
+ gArb688MPTZ7YeyR |    41 |    157 | VENTA PUNTO DE VENTA
+ DKVeZ7xAhXA9a8Py |    13 |    105 |  PP - SEMANA 36- MARTES - VER019 - PIMIENTO VERDE EN PROCESO - VER019 - 150926
+ pKBe1ZRBCLxNaXyO |     6 |    166 | EGRESO CHIOS FLOREANA
+(8 rows)
+
+Time: 5843.316 ms (00:05.843)
+=== egr_venta_detalle_muestra
+        id        |     descripcion      |   producto_id    | codigo  |       nombre        | tipo_producto | cantidad | costo 
+------------------+----------------------+------------------+---------+---------------------+---------------+----------+-------
+ 01dNkLZ0NAiwJmeX | VENTA PUNTO DE VENTA | Yjbq7Qn7VcJnjeLN | CP008   | CHICHARRON          | PRO           | 251.00   | 0.02
+ 01dNkLZ0NAiwJmeX | VENTA PUNTO DE VENTA | XKdwV0vDGIgk3bgW | ACOM002 | EMPANADA DE CAMARON | SIM           | 2.00     | 1.67
+(2 rows)
+
+Time: 39595.379 ms (00:39.595)
+=== egr_venta_tipos_producto
+ tipo_producto | lineas | productos 
+---------------+--------+-----------
+ PRO           |   2336 |        51
+ SIM           |   2195 |        60
+(2 rows)
+
+Time: 619.961 ms
+FIN exit=0
