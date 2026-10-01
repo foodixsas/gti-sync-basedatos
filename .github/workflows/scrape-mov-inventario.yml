@@ -19,7 +19,7 @@ on:
         required: true
         default: '17/08/2026'
       modo:
-        description: 'backfill | manual | semanal | mensual'
+        description: 'backfill | manual | semanal | mensual | correccion (vacía la cola de relecturas; ignora desde/hasta)'
         required: true
         default: 'backfill'
       solo:
@@ -78,6 +78,13 @@ jobs:
         run: |
           set -o pipefail
           if [ "${{ github.event_name }}" = "schedule" ]; then
+            # Red de seguridad de las relecturas (01-oct-2026). Los días que Contabilidad marcó como
+            # corregidos en Control de Costos esperan en contifico_web.mov_inventario_relectura; el
+            # dashboard avisa con un dispatch, pero si ese aviso no llega (pasó: faltaba la llave en
+            # Vercel y 29 días quedaron sin releer) se releen acá, a más tardar al día siguiente.
+            # Va primero y no tumba la corrida diaria si falla: su código se devuelve al final.
+            REL=0
+            npx tsx src/scripts/scrape-mov-inventario.ts --pendientes --modo correccion --sin "EGR:" || REL=$?
             # Domingos: re-bajar los últimos 30 días (captura ediciones retroactivas en Contifico,
             # p.ej. ingresos corregidos días después — caso PAPAS FRANCESAS 18/20-ago-2026).
             if [ "$(date -u +%u)" = "7" ]; then
@@ -92,6 +99,11 @@ jobs:
               npx tsx src/scripts/scrape-mov-inventario.ts --desde "$(date -u -d '10 days ago' +%d/%m/%Y)" --hasta "$(date -u +%d/%m/%Y)" --modo diario --sin "EGR:"
               npx tsx src/scripts/scrape-mov-inventario.ts --desde "$(date -u -d '1 day ago' +%d/%m/%Y)" --hasta "$(date -u +%d/%m/%Y)" --modo diario --solo "EGR:"
             fi
+            if [ "$REL" -ne 0 ]; then echo "::warning::la relectura de pendientes terminó con código $REL"; exit "$REL"; fi
+          elif [ "${{ inputs.modo }}" = "correccion" ]; then
+            # El dashboard solo avisa que hay días por releer: salen de la cola, no de los inputs.
+            # Así tres avisos seguidos no pierden ninguno, aunque `concurrency` cancele el del medio.
+            npx tsx src/scripts/scrape-mov-inventario.ts --pendientes --modo correccion --sin "EGR:"
           else
             SOLO=""; SIN=""
             if [ -n "${{ inputs.solo }}" ]; then SOLO="--solo ${{ inputs.solo }}"; fi
