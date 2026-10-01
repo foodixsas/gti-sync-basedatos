@@ -162,6 +162,81 @@ export function anotarSlice(seg: Map<string, EstadoDia>, s: Slice, exito: boolea
   return e.procesados === e.total ? { fecha: k, ok: e.fallos === 0 } : null;
 }
 
+// ─── Guarda de export vacío: comprobación con testigo ──────────────────────
+// fn_web_mov_commit tiene una guarda (incidente 06-sep-2026): si un export llega sin documentos y en la
+// base hay documentos vivos para ese rango/tipo/origen, no toca nada. Sola no distingue "el portal
+// devolvió vacío por error" de "esos documentos se borraron de verdad": el 29/30-sep Contabilidad
+// eliminó 10 ajustes y la guarda dejó el scrape en rojo cada corrida y un día de relectura sin poder
+// cerrarse nunca. Antes de dar el slice por fallido se hace la comprobación que se haría a mano:
+//   1. se piden candidatos a testigo: otros documentos vivos del mismo tipo (y origen), fuera del rango;
+//   2. se baja y se asienta el día de un candidato: si ese export trae documentos, el export de ese tipo
+//      responde, y cualquiera de ellos sirve de testigo;
+//   3. se vuelve a leer el rango sospechoso; si sigue vacío, el commit cita al testigo y la base verifica
+//      que lo vio esta misma corrida hace menos de 10 minutos. Si ahora trae filas, era un vacío pasajero.
+// Sin testigo todo queda como antes: bloqueo, ok=false en sync_log y el slice cuenta como fallo. El 06-sep
+// no habría pasado la prueba: todos los exports AJU venían vacíos, ningún candidato habría aparecido.
+export interface ResultadoCommit {
+  ok: boolean; motivo?: string; necesita_testigo?: boolean; confirmado_con_testigo?: string;
+  filas?: number; docs?: number; nuevos?: number; actualizados?: number; borrados?: number; vivos?: number;
+}
+export interface Lectura<R extends { codigo: string }> { rows: R[]; status: number; bytes: number; extraCols: string[]; durMs: number }
+export interface DepsTestigo<R extends { codigo: string }> {
+  /** Otros documentos vivos del mismo tipo/origen, fuera del rango (RPC fn_web_mov_testigos). */
+  buscarTestigos: (s: Slice) => Promise<{ testigos: Array<{ codigo: string; fecha: string }>; error?: string }>;
+  /** Un GET del export, sin reintentos. null = no se pudo leer. */
+  bajar: (s: Slice) => Promise<Lectura<R> | null>;
+  /** Stage + commit del slice con ese contenido. */
+  guardar: (s: Slice, l: Lectura<R>, meta: Record<string, unknown>) => Promise<{ data: ResultadoCommit | null; error: string | null }>;
+  pausa: () => Promise<void>;
+  log: (m: string) => void;
+}
+
+/** Devuelve el resultado final del slice: ok=true (vacío confirmado, o ya trae filas) u ok=false (queda bloqueado y asentado). */
+export async function confirmarExportVacio<R extends { codigo: string }>(
+  s: Slice, vacio: Lectura<R>, primer: ResultadoCommit, deps: DepsTestigo<R>,
+): Promise<ResultadoCommit> {
+  // Sin la marca de sondeo, el commit asienta el bloqueo (ok=false) con el porqué de que no se pudo comprobar.
+  const bloquear = async (porQue: string): Promise<ResultadoCommit> => {
+    const r = await deps.guardar(s, vacio, { testigo_fallo: porQue });
+    const base = r.data ?? { ok: false, motivo: r.error ? `commit: ${r.error}` : primer.motivo };
+    return { ...base, ok: false, motivo: `${base.motivo ?? primer.motivo ?? 'export vacío sospechoso'} · ${porQue}` };
+  };
+  // Ventas POS de un día: que desaparezcan todas no es creíble, y bajar otro día entero son minutos.
+  if (s.heavy) return bloquear('slice pesado: no se comprueba con testigo');
+
+  const { testigos, error } = await deps.buscarTestigos(s);
+  if (error) return bloquear(`no se pudieron buscar testigos: ${error}`);
+  if (!testigos.length) return bloquear('no hay otro documento vivo de ese tipo con el cual comprobar');
+
+  const dias = Array.from(new Set(testigos.map((t) => t.fecha)));
+  for (const fecha of dias) {
+    const dia = parseISO(fecha);
+    const control: Slice = { ...s, desde: dia, hasta: dia, heavy: false };
+    await deps.pausa();
+    const lc = await deps.bajar(control);
+    if (!lc) { deps.log(`  · testigo ${fecha}: no se pudo leer el export`); continue; }
+    // Se asienta como cualquier slice. Si llega vacío con su documento vivo, la guarda lo bloquea y lo deja
+    // bajo sospecha (fn_web_mov_testigos no lo vuelve a proponer).
+    const gc = await deps.guardar(control, lc, { testigo_de: `${s.tipo}:${s.origen || 'TODOS'} ${fmtISO(s.desde)}..${fmtISO(s.hasta)}` });
+    if (gc.error || !gc.data?.ok || lc.rows.length === 0) {
+      deps.log(`  · testigo ${fecha}: ${gc.error ?? (lc.rows.length === 0 ? 'el export de ese día también llegó vacío' : gc.data?.motivo ?? 'no se pudo asentar')}`);
+      continue;
+    }
+    const testigo = { codigo: lc.rows[0].codigo, fecha };
+    // El export de este tipo responde. ¿Sigue vacío el rango sospechoso?
+    await deps.pausa();
+    const otra = await deps.bajar(s);
+    if (!otra) return bloquear(`el testigo ${testigo.codigo} apareció, pero no se pudo volver a leer el rango`);
+    const g2 = await deps.guardar(s, otra, { testigo });
+    if (g2.error) return { ok: false, motivo: `commit: ${g2.error}` };
+    if (g2.data?.ok) deps.log(otra.rows.length === 0
+      ? `  · vacío confirmado con el testigo ${testigo.codigo} (${fecha}): esos documentos ya no existen en Contifico`
+      : `  · era un vacío pasajero: al volver a leer llegaron ${otra.rows.length} filas`);
+    return g2.data ?? { ok: false, motivo: 'commit sin respuesta' };
+  }
+  return bloquear(`ningún testigo apareció (${dias.join(', ')}): el export de ${s.tipo} no está respondiendo`);
+}
+
 // ─── Login ─────────────────────────────────────────────────────────────────
 async function login(page: Page): Promise<void> {
   console.log('🔐 Login Contifico…');
@@ -364,6 +439,45 @@ async function main() {
     });
   };
 
+  // Stage en lotes + commit de un slice con el contenido ya leído.
+  const guardar = async (s: Slice, l: Lectura<Row>, meta: Record<string, unknown>): Promise<{ data: ResultadoCommit | null; error: string | null }> => {
+    for (let j = 0; j < l.rows.length; j += STAGE_BATCH) {
+      const { error } = await supabase.rpc('fn_web_mov_stage', { p_run_id: runId, p_rows: l.rows.slice(j, j + STAGE_BATCH) });
+      if (error) return { data: null, error: `stage: ${error.message}` };
+    }
+    const { data, error } = await supabase.rpc('fn_web_mov_commit', {
+      p_run_id: runId, p_fecha_desde: fmtISO(s.desde), p_fecha_hasta: fmtISO(s.hasta), p_tipo: s.tipo, p_origen: s.origen || null,
+      p_modo: args.modo, p_http_status: l.status, p_bytes: l.bytes, p_dur_ms: l.durMs,
+      p_meta: { url: exportUrl(s), filas_archivo: l.rows.length, extra_cols: l.extraCols, ...meta },
+    });
+    return error ? { data: null, error: `commit: ${error.message}` } : { data: (data ?? null) as ResultadoCommit | null, error: null };
+  };
+
+  // Un GET del export sin reintentos, para la comprobación con testigo. null = no se pudo leer (y se dice por qué).
+  const bajar = async (s: Slice): Promise<Lectura<Row> | null> => {
+    const t0 = Date.now();
+    const quien = `${s.tipo}:${s.origen || 'TODOS'} ${fmtDMY(s.desde)}→${fmtDMY(s.hasta)}`;
+    try {
+      const resp = await context.request.get(exportUrl(s), { timeout: REQUEST_TIMEOUT_MS, headers: { Referer: EXPORT_URL, Accept: 'application/vnd.ms-excel,application/octet-stream,text/html;q=0.8,*/*;q=0.5' } });
+      const ctype = resp.headers()['content-type'] ?? '';
+      if (resp.status() !== 200 || ctype.includes('text/html')) { console.log(`  · ${quien}: HTTP ${resp.status()} ${ctype.includes('text/html') ? '(HTML en vez de xls)' : ''}`); return null; }
+      const body = await resp.body();
+      const parsed = parseXls(body, s);
+      if (!parsed.ok) { console.log(`  · ${quien}: ${parsed.error}`); return null; }
+      return { rows: parsed.rows, status: 200, bytes: body.length, extraCols: parsed.extraCols, durMs: Date.now() - t0 };
+    } catch (e) {
+      console.log(`  · ${quien}: excepción ${(e as Error).message.split('\n')[0]}`);
+      return null;
+    }
+  };
+
+  const buscarTestigos = async (s: Slice): Promise<{ testigos: Array<{ codigo: string; fecha: string }>; error?: string }> => {
+    const { data, error } = await supabase.rpc('fn_web_mov_testigos', {
+      p_tipo: s.tipo, p_origen: s.origen || null, p_fecha_desde: fmtISO(s.desde), p_fecha_hasta: fmtISO(s.hasta), p_max: 5,
+    });
+    return error ? { testigos: [], error: error.message } : { testigos: (data ?? []) as Array<{ codigo: string; fecha: string }> };
+  };
+
   // Relecturas: al empezar cada slice se asienta el anterior; el día se cierra en la cola con su último slice.
   let relOk = 0, relFail = 0;
   let enCurso: { s: Slice; okAntes: number } | null = null;
@@ -433,21 +547,18 @@ async function main() {
       await sleep(rand(s.heavy ? PAUSE_HEAVY_MS : PAUSE_LIGHT_MS)); continue;
     }
 
-    // stage en lotes
-    let stageErr: string | null = null;
-    for (let j = 0; j < parsed.rows.length && !stageErr; j += STAGE_BATCH) {
-      const { error } = await supabase.rpc('fn_web_mov_stage', { p_run_id: runId, p_rows: parsed.rows.slice(j, j + STAGE_BATCH) });
-      if (error) stageErr = `stage: ${error.message}`;
+    const lectura: Lectura<Row> = { rows: parsed.rows, status: status ?? 200, bytes: buf.length, extraCols: parsed.extraCols, durMs: Date.now() - ts };
+    // "sondeo": si salta la guarda de export vacío, el commit avisa sin asentar y se intenta el testigo.
+    const g = await guardar(s, lectura, { sondeo: true });
+    if (g.error) { fail++; await logFail(s, status, buf.length, Date.now() - ts, g.error); await sleep(rand(PAUSE_LIGHT_MS)); continue; }
+    let data = g.data;
+    if (data?.ok === false && data.necesita_testigo) {
+      console.log(`  ⚠️ ${label} ${data.motivo} → se comprueba con un testigo`);
+      data = await confirmarExportVacio(s, lectura, data, {
+        buscarTestigos, bajar, guardar, pausa: async () => { await sleep(rand(PAUSE_LIGHT_MS)); }, log: (m) => console.log(m),
+      });
     }
-    if (stageErr) { fail++; await logFail(s, status, buf.length, Date.now() - ts, stageErr); await sleep(rand(PAUSE_LIGHT_MS)); continue; }
-
-    const { data, error } = await supabase.rpc('fn_web_mov_commit', {
-      p_run_id: runId, p_fecha_desde: fmtISO(s.desde), p_fecha_hasta: fmtISO(s.hasta), p_tipo: s.tipo, p_origen: s.origen || null,
-      p_modo: args.modo, p_http_status: status, p_bytes: buf.length, p_dur_ms: Date.now() - ts,
-      p_meta: { url, filas_archivo: parsed.rows.length, extra_cols: parsed.extraCols },
-    });
-    if (error) { fail++; await logFail(s, status, buf.length, Date.now() - ts, `commit: ${error.message}`); await sleep(rand(PAUSE_LIGHT_MS)); continue; }
-    // guarda de fn_web_mov_commit: export sin documentos con docs vivos en el rango → no se tocó nada y ya quedó ok=false en sync_log
+    // guarda de fn_web_mov_commit sin testigo que la levante: no se tocó nada y ya quedó ok=false en sync_log
     if (data?.ok === false) { fail++; console.log(`  ⚠️ ${label} ${data.motivo}`); await sleep(rand(PAUSE_LIGHT_MS)); continue; }
     ok++; filasTotal += data?.filas ?? 0; docsTotal += data?.docs ?? 0;
     console.log(`${label} status=${status} bytes=${buf.length} filas=${data?.filas} docs=${data?.docs} (+${data?.nuevos} ~${data?.actualizados} -${data?.borrados}) ${Date.now() - ts}ms`);

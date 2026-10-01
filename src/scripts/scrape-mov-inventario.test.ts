@@ -4,7 +4,10 @@
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { anotarSlice, buildSlicesPendientes, exportUrl, nuevoSeguimiento } from './scrape-mov-inventario';
+import {
+  anotarSlice, buildSlices, buildSlicesPendientes, confirmarExportVacio, exportUrl, nuevoSeguimiento,
+  type DepsTestigo, type Lectura, type ResultadoCommit,
+} from './scrape-mov-inventario';
 
 const iso = (d: Date) => d.toISOString().slice(0, 10);
 
@@ -51,4 +54,149 @@ test('un día interrumpido queda a medias: ni cerrado ni dado por bueno', () => 
   const e = seg.get('2026-03-12')!;
   assert.equal(e.procesados, 10);
   assert.ok(e.procesados > 0 && e.procesados < e.total, 'se reconoce como interrumpido');
+});
+
+// ─── Guarda de export vacío: comprobación con testigo ──────────────────────
+// Caso real del 01-oct-2026: Contabilidad borró en Contifico el ajuste AJU 202609000385 (22-sep). El
+// export de ese día llega vacío, la base lo tiene vivo y la guarda no dejaba cerrar el día.
+type Fila = { codigo: string };
+const lectura = (codigos: string[]): Lectura<Fila> => ({ rows: codigos.map((codigo) => ({ codigo })), status: 200, bytes: 5632, extraCols: [], durMs: 10 });
+const BLOQUEO: ResultadoCommit = { ok: false, necesita_testigo: true, vivos: 1, motivo: 'export vacío sospechoso: 0 docs en el export y 1 docs vivos' };
+
+/** Un Contifico de mentira: qué documentos devuelve el export de cada día, y una base que aplica la guarda. */
+function escenario(opts: {
+  exportPorDia: Record<string, string[] | null>;                 // null = el GET falla
+  candidatos?: Array<{ codigo: string; fecha: string }>;
+  errorCandidatos?: string;
+  /** Lo que el export del rango sospechoso devuelve la SEGUNDA vez (por defecto, lo mismo que la primera). */
+  segundaLectura?: string[] | null;
+}) {
+  const bajadas: string[] = [];
+  const commits: Array<{ dia: string; filas: number; meta: Record<string, unknown> }> = [];
+  const vistosPorLaCorrida = new Set<string>();
+  const veces = new Map<string, number>();
+  const deps: DepsTestigo<Fila> = {
+    buscarTestigos: async () => opts.errorCandidatos ? { testigos: [], error: opts.errorCandidatos } : { testigos: opts.candidatos ?? [] },
+    bajar: async (s) => {
+      const dia = s.desde.toISOString().slice(0, 10);
+      bajadas.push(dia);
+      const n = (veces.get(dia) ?? 0) + 1; veces.set(dia, n);
+      const r = dia === SOSPECHOSO && opts.segundaLectura !== undefined ? opts.segundaLectura : opts.exportPorDia[dia];
+      return r === null || r === undefined ? null : lectura(r);
+    },
+    guardar: async (s, l, meta) => {
+      const dia = s.desde.toISOString().slice(0, 10);
+      commits.push({ dia, filas: l.rows.length, meta });
+      if (l.rows.length > 0) { l.rows.forEach((r) => vistosPorLaCorrida.add(r.codigo)); return { data: { ok: true, filas: l.rows.length, docs: l.rows.length, borrados: 0 }, error: null }; }
+      // Export vacío con documentos vivos: la base solo lo acepta si el testigo citado lo vio ESTA corrida.
+      const t = meta.testigo as { codigo: string } | undefined;
+      if (t && vistosPorLaCorrida.has(t.codigo)) return { data: { ok: true, filas: 0, docs: 0, borrados: 1, confirmado_con_testigo: t.codigo }, error: null };
+      return { data: { ok: false, motivo: 'export vacío sospechoso: 0 docs en el export y 1 docs vivos', vivos: 1 }, error: null };
+    },
+    pausa: async () => {},
+    log: () => {},
+  };
+  return { deps, bajadas, commits };
+}
+const SOSPECHOSO = '2026-09-22';
+const sliceAJU = () => buildSlices(new Date(Date.UTC(2026, 8, 22)), new Date(Date.UTC(2026, 8, 22)), 'AJU:')[0];
+
+test('el testigo aparece y el rango sigue vacío: el borrado es real y el slice queda bien', async () => {
+  const e = escenario({
+    exportPorDia: { '2026-03-12': ['AJU 202603000146', 'AJU 202603000105'], [SOSPECHOSO]: [] },
+    candidatos: [{ codigo: 'AJU 202603000146', fecha: '2026-03-12' }],
+  });
+  const r = await confirmarExportVacio(sliceAJU(), lectura([]), BLOQUEO, e.deps);
+  assert.equal(r.ok, true);
+  assert.equal(r.borrados, 1);
+  assert.equal(r.confirmado_con_testigo, 'AJU 202603000146');
+  // Orden del protocolo: primero el día del testigo, después otra vez el rango sospechoso.
+  assert.deepEqual(e.bajadas, ['2026-03-12', SOSPECHOSO]);
+  assert.deepEqual(e.commits.map((c) => c.dia), ['2026-03-12', SOSPECHOSO]);
+  assert.deepEqual(e.commits[1].meta.testigo, { codigo: 'AJU 202603000146', fecha: '2026-03-12' });
+  // El commit que cita al testigo ya no es un sondeo: si la base lo rechaza, tiene que quedar asentado.
+  assert.equal(e.commits[1].meta.sondeo, undefined);
+});
+
+test('fallo del portal (06-sep-2026): ningún testigo aparece, así que no se da de baja nada', async () => {
+  const e = escenario({
+    exportPorDia: { '2026-03-12': [], '2026-03-10': [], [SOSPECHOSO]: [] },
+    candidatos: [{ codigo: 'AJU 202603000146', fecha: '2026-03-12' }, { codigo: 'AJU 202603000145', fecha: '2026-03-10' }],
+  });
+  const r = await confirmarExportVacio(sliceAJU(), lectura([]), BLOQUEO, e.deps);
+  assert.equal(r.ok, false);
+  assert.match(r.motivo ?? '', /ningún testigo apareció/);
+  assert.match(r.motivo ?? '', /2026-03-12, 2026-03-10/);
+  // El último commit es el del rango sospechoso SIN testigo: es el que deja ok=false en sync_log.
+  const ultimo = e.commits[e.commits.length - 1];
+  assert.equal(ultimo.dia, SOSPECHOSO);
+  assert.equal(ultimo.meta.testigo, undefined);
+  assert.match(String(ultimo.meta.testigo_fallo), /ningún testigo apareció/);
+});
+
+test('el primer candidato ya no existe y el segundo sí: se usa el segundo', async () => {
+  const e = escenario({
+    exportPorDia: { '2026-09-19': [], '2026-09-14': ['AJU 202609000131'], [SOSPECHOSO]: [] },
+    candidatos: [{ codigo: 'AJU 202609000422', fecha: '2026-09-19' }, { codigo: 'AJU 202609000131', fecha: '2026-09-14' }],
+  });
+  const r = await confirmarExportVacio(sliceAJU(), lectura([]), BLOQUEO, e.deps);
+  assert.equal(r.ok, true);
+  assert.equal(r.confirmado_con_testigo, 'AJU 202609000131');
+  assert.deepEqual(e.bajadas, ['2026-09-19', '2026-09-14', SOSPECHOSO]);
+});
+
+test('el testigo es lo que el export devolvió, no el candidato: sirve aunque el candidato ya no esté', async () => {
+  const e = escenario({
+    exportPorDia: { '2026-03-12': ['AJU 202603000105'], [SOSPECHOSO]: [] },
+    candidatos: [{ codigo: 'AJU 202603000146', fecha: '2026-03-12' }],
+  });
+  const r = await confirmarExportVacio(sliceAJU(), lectura([]), BLOQUEO, e.deps);
+  assert.equal(r.ok, true);
+  assert.equal(r.confirmado_con_testigo, 'AJU 202603000105');
+});
+
+test('vacío pasajero: al volver a leer el rango llegan filas y se guardan como cualquier slice', async () => {
+  const e = escenario({
+    exportPorDia: { '2026-03-12': ['AJU 202603000146'], [SOSPECHOSO]: [] },
+    candidatos: [{ codigo: 'AJU 202603000146', fecha: '2026-03-12' }],
+    segundaLectura: ['AJU 202609000385'],
+  });
+  const r = await confirmarExportVacio(sliceAJU(), lectura([]), BLOQUEO, e.deps);
+  assert.equal(r.ok, true);
+  assert.equal(r.filas, 1);
+  assert.equal(r.borrados, 0);
+});
+
+test('sin candidatos, o sin poder buscarlos, el slice queda bloqueado y dice por qué', async () => {
+  const sin = escenario({ exportPorDia: { [SOSPECHOSO]: [] }, candidatos: [] });
+  const r1 = await confirmarExportVacio(sliceAJU(), lectura([]), BLOQUEO, sin.deps);
+  assert.equal(r1.ok, false);
+  assert.match(r1.motivo ?? '', /no hay otro documento vivo/);
+  assert.equal(sin.bajadas.length, 0);
+
+  const err = escenario({ exportPorDia: { [SOSPECHOSO]: [] }, errorCandidatos: 'permission denied' });
+  const r2 = await confirmarExportVacio(sliceAJU(), lectura([]), BLOQUEO, err.deps);
+  assert.equal(r2.ok, false);
+  assert.match(r2.motivo ?? '', /permission denied/);
+});
+
+test('el testigo aparece pero el rango no se puede volver a leer: bloqueado (nunca se asume)', async () => {
+  const e = escenario({
+    exportPorDia: { '2026-03-12': ['AJU 202603000146'], [SOSPECHOSO]: [] },
+    candidatos: [{ codigo: 'AJU 202603000146', fecha: '2026-03-12' }],
+    segundaLectura: null,
+  });
+  const r = await confirmarExportVacio(sliceAJU(), lectura([]), BLOQUEO, e.deps);
+  assert.equal(r.ok, false);
+  assert.match(r.motivo ?? '', /no se pudo volver a leer/);
+});
+
+test('las ventas POS de un día (slice pesado) no se comprueban con testigo', async () => {
+  const pesado = buildSlices(new Date(Date.UTC(2026, 8, 22)), new Date(Date.UTC(2026, 8, 22)), 'EGR:')[0];
+  assert.equal(pesado.heavy, true);
+  const e = escenario({ exportPorDia: {}, candidatos: [{ codigo: 'EGR 1', fecha: '2026-09-21' }] });
+  const r = await confirmarExportVacio(pesado, lectura([]), BLOQUEO, e.deps);
+  assert.equal(r.ok, false);
+  assert.match(r.motivo ?? '', /slice pesado/);
+  assert.equal(e.bajadas.length, 0);
 });
